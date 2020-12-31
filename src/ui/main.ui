@@ -1,0 +1,496 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MoneyManage</class>
+ <widget class="QMainWindow" name="MoneyManage">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>재산관리</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QGridLayout" name="glCent">
+    <item row="0" column="0">
+     <widget class="QTabWidget" name="tabWidget">
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
+      <widget class="QWidget" name="tabCate">
+       <attribute name="title">
+        <string>분류 관리</string>
+       </attribute>
+       <layout class="QGridLayout" name="glCate">
+        <item row="0" column="0">
+         <widget class="QGroupBox" name="gbSrc">
+          <property name="title">
+           <string>원천</string>
+          </property>
+          <layout class="QHBoxLayout" name="hlSrc">
+           <item>
+            <widget class="QWidget" name="widSrcAdd" native="true">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <layout class="QHBoxLayout" name="hlSrcAdd">
+              <item>
+               <widget class="QLineEdit" name="lnSrcAdd"/>
+              </item>
+              <item>
+               <widget class="QPushButton" name="btnSrcAdd">
+                <property name="text">
+                 <string>추가</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="Line" name="lineSrc">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QWidget" name="widSrcDel" native="true">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <layout class="QHBoxLayout" name="hlSrcDel">
+              <item>
+               <widget class="QComboBox" name="cbSrcDel"/>
+              </item>
+              <item>
+               <widget class="QPushButton" name="btnSrcDel">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="text">
+                 <string>삭제</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QGroupBox" name="gbInDet">
+          <property name="title">
+           <string>수입 상세</string>
+          </property>
+          <layout class="QHBoxLayout" name="hlIn">
+           <item>
+            <widget class="QWidget" name="widInAdd" native="true">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <layout class="QHBoxLayout" name="hlInAdd">
+              <item>
+               <widget class="QLineEdit" name="lnInAdd"/>
+              </item>
+              <item>
+               <widget class="QPushButton" name="btnInAdd">
+                <property name="text">
+                 <string>추가</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="Line" name="lineIn">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QWidget" name="widInDel" native="true">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <layout class="QHBoxLayout" name="hlInDel">
+              <item>
+               <widget class="QComboBox" name="cbInDel"/>
+              </item>
+              <item>
+               <widget class="QPushButton" name="btnInDel">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="text">
+                 <string>삭제</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QGroupBox" name="gbOutDet">
+          <property name="title">
+           <string>지출 상세(사용처)</string>
+          </property>
+          <layout class="QHBoxLayout" name="hlDel">
+           <item>
+            <widget class="QWidget" name="widOutAdd" native="true">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <layout class="QHBoxLayout" name="hlOutAdd">
+              <item>
+               <widget class="QLineEdit" name="lnOutAdd"/>
+              </item>
+              <item>
+               <widget class="QPushButton" name="btnOutAdd">
+                <property name="text">
+                 <string>추가</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="Line" name="lineOut">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QWidget" name="widOutDel" native="true">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <layout class="QHBoxLayout" name="hlOutDel">
+              <item>
+               <widget class="QComboBox" name="cbOutDel"/>
+              </item>
+              <item>
+               <widget class="QPushButton" name="btnOutDel">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="text">
+                 <string>삭제</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="tabData">
+       <attribute name="title">
+        <string>기록 추가/수정</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="vlData">
+        <item>
+         <widget class="QTreeWidget" name="treeData">
+          <column>
+           <property name="text">
+            <string>일시</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>구분</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>원천</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>사용처</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>금액</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>설명</string>
+           </property>
+          </column>
+         </widget>
+        </item>
+        <item>
+         <widget class="QWidget" name="widInput" native="true">
+          <layout class="QGridLayout" name="glDataIn">
+           <item row="1" column="4">
+            <widget class="QLineEdit" name="lnCost">
+             <property name="maximumSize">
+              <size>
+               <width>75</width>
+               <height>16777215</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QComboBox" name="cbType"/>
+           </item>
+           <item row="1" column="5">
+            <widget class="QLineEdit" name="lnDetail"/>
+           </item>
+           <item row="0" column="2" alignment="Qt::AlignHCenter">
+            <widget class="QLabel" name="lbSrc">
+             <property name="text">
+              <string>원천</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="0" alignment="Qt::AlignHCenter">
+            <widget class="QLabel" name="lbDate">
+             <property name="text">
+              <string>일시</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLineEdit" name="lnDate">
+             <property name="maximumSize">
+              <size>
+               <width>75</width>
+               <height>16777215</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="3">
+            <widget class="QComboBox" name="cbDetail"/>
+           </item>
+           <item row="0" column="5" alignment="Qt::AlignHCenter">
+            <widget class="QLabel" name="lbDesc">
+             <property name="text">
+              <string>설명</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="2">
+            <widget class="QComboBox" name="cbSrc"/>
+           </item>
+           <item row="0" column="3" alignment="Qt::AlignHCenter">
+            <widget class="QLabel" name="lbDetail">
+             <property name="text">
+              <string>상세</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1" alignment="Qt::AlignHCenter">
+            <widget class="QLabel" name="lbType">
+             <property name="text">
+              <string>구분</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="4" alignment="Qt::AlignHCenter">
+            <widget class="QLabel" name="lbCost">
+             <property name="text">
+              <string>금액</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="6">
+            <widget class="QPushButton" name="btnAddData">
+             <property name="text">
+              <string>데이터 추가</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="tabSumS">
+       <attribute name="title">
+        <string>간략통계</string>
+       </attribute>
+       <layout class="QGridLayout" name="glSum">
+        <item row="0" column="0">
+         <widget class="QTreeWidget" name="treeStatS">
+          <column>
+           <property name="text">
+            <string>연월</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>총 재산</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>현금성</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>재산 변동</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>순 수익</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>수입</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>지출</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>수입외</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>지출외</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>이동액</string>
+           </property>
+          </column>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="tabStatM">
+       <attribute name="title">
+        <string>월별통계</string>
+       </attribute>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>800</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="fileMenu">
+    <property name="title">
+     <string>파일</string>
+    </property>
+    <addaction name="acLoad"/>
+    <addaction name="acSave"/>
+    <addaction name="acSaveAs"/>
+    <addaction name="separator"/>
+    <addaction name="acExit"/>
+   </widget>
+   <widget class="QMenu" name="infoMenu">
+    <property name="title">
+     <string>정보</string>
+    </property>
+    <addaction name="acOpenLicense"/>
+    <addaction name="acLicense"/>
+    <addaction name="separator"/>
+    <addaction name="acInfo"/>
+   </widget>
+   <addaction name="fileMenu"/>
+   <addaction name="infoMenu"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="acLoad">
+   <property name="text">
+    <string>불러오기</string>
+   </property>
+  </action>
+  <action name="acSave">
+   <property name="text">
+    <string>저장</string>
+   </property>
+  </action>
+  <action name="acSaveAs">
+   <property name="text">
+    <string>다른 이름으로 저장</string>
+   </property>
+  </action>
+  <action name="acExit">
+   <property name="text">
+    <string>종료</string>
+   </property>
+  </action>
+  <action name="acOpenLicense">
+   <property name="text">
+    <string>오픈 소스 라이선스</string>
+   </property>
+  </action>
+  <action name="acLicense">
+   <property name="text">
+    <string>라이선스</string>
+   </property>
+  </action>
+  <action name="acInfo">
+   <property name="text">
+    <string>정보</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
