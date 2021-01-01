@@ -19,6 +19,10 @@ sizePolicy_FF = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 sizePolicy_FF.setHorizontalStretch(0)
 sizePolicy_FF.setVerticalStretch(0)
 
+sizePolicy_EE = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+sizePolicy_EE.setHorizontalStretch(0)
+sizePolicy_EE.setVerticalStretch(0)
+
 
 class GbAddDelCate(QGroupBox):
     def __init__(self,parent):
@@ -175,10 +179,12 @@ class TabData(QWidget):
 
         self.cbSrc = QComboBox(self.widInput)
         self.cbSrc.setObjectName(u"cbSrc")
+        self.cbSrc.setMinimumSize(QSize(100,1))
         self.glDataIn.addWidget(self.cbSrc, 1, 2, 1, 1)
 
         self.cbDetail = QComboBox(self.widInput)
         self.cbDetail.setObjectName(u"cbDetail")
+        self.cbDetail.setMinimumSize(QSize(100,1))
         self.glDataIn.addWidget(self.cbDetail, 1, 3, 1, 1)
 
         self.lnCost = QLineEdit(self.widInput)
@@ -231,7 +237,7 @@ class TabStatS(QWidget):
         pass
 
 
-class TabStatM(QWidget):
+class TabStatM(QScrollArea):
     def __init__(self,parent):
         super().__init__(parent)
         self.setupUi()
@@ -239,13 +245,19 @@ class TabStatM(QWidget):
     def setupUi(self):
         if not self.objectName():
             self.setObjectName(u"self")
-        self.setFixedSize(776,510)
+        #self.setFixedSize(776,510)
         
-        self.glCent = QGridLayout(self)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        
+        self.widCent=QWidget(self)
+        sizePolicy_EE.setHeightForWidth(self.widCent.sizePolicy().hasHeightForWidth())
+        self.widCent.setSizePolicy(sizePolicy_EE)
+        self.glCent = QGridLayout(self.widCent)
         self.glCent.setObjectName(u"glCent")
 
 
-        self.gbMonth = QGroupBox(self)
+        self.gbMonth = QGroupBox(self.widCent)
         self.gbMonth.setObjectName(u"gbMonth")
         sizePolicy_PF.setHeightForWidth(self.gbMonth.sizePolicy().hasHeightForWidth())
         self.gbMonth.setSizePolicy(sizePolicy_PF)
@@ -261,16 +273,18 @@ class TabStatM(QWidget):
         self.cbMonth.setObjectName(u"cbMonth")
         self.hlMonth.addWidget(self.cbMonth)
 
+        '''
         self.btnChange = QPushButton(self.gbMonth)
         self.btnChange.setObjectName(u"btnChange")
         sizePolicy_FF.setHeightForWidth(self.btnChange.sizePolicy().hasHeightForWidth())
         self.btnChange.setSizePolicy(sizePolicy_FF)
         self.hlMonth.addWidget(self.btnChange)
+        '''
 
         self.glCent.addWidget(self.gbMonth, 0, 0, 1, 2)
 
 
-        self.gbIncome = QGroupBox(self)
+        self.gbIncome = QGroupBox(self.widCent)
         self.gbIncome.setObjectName(u"gbIncome")
         self.glIncome = QGridLayout(self.gbIncome)
         self.glIncome.setObjectName(u"glIncome")
@@ -290,7 +304,7 @@ class TabStatM(QWidget):
         self.glCent.addWidget(self.gbIncome, 1, 0, 1, 1)
 
 
-        self.gbOutcome = QGroupBox(self)
+        self.gbOutcome = QGroupBox(self.widCent)
         self.gbOutcome.setObjectName(u"gbOutcome")
         self.glOutcome = QGridLayout(self.gbOutcome)
         self.glOutcome.setObjectName(u"glOutcome")
@@ -311,7 +325,7 @@ class TabStatM(QWidget):
         self.glCent.addWidget(self.gbOutcome, 2, 0, 1, 1)
 
 
-        self.gbCurrent = QGroupBox(self)
+        self.gbCurrent = QGroupBox(self.widCent)
         self.gbCurrent.setObjectName(u"gbCurrent")
         self.glCurrent = QGridLayout(self.gbCurrent)
         self.glCurrent.setObjectName(u"glCurrent")
@@ -329,7 +343,7 @@ class TabStatM(QWidget):
         self.glCent.addWidget(self.gbCurrent, 1, 1, 1, 1)
 
 
-        self.gbMove = QGroupBox(self)
+        self.gbMove = QGroupBox(self.widCent)
         self.gbMove.setObjectName(u"gbMove")
         self.glMove = QGridLayout(self.gbMove)
         self.glMove.setObjectName(u"glMove")
@@ -349,7 +363,7 @@ class TabStatM(QWidget):
         self.glCent.addWidget(self.gbMove, 2, 1, 1, 1)
 
 
-        self.gbStat = QGroupBox(self)
+        self.gbStat = QGroupBox(self.widCent)
         self.gbStat.setObjectName(u"gbStat")
         sizePolicy_PF.setHeightForWidth(self.gbStat.sizePolicy().hasHeightForWidth())
         self.gbStat.setSizePolicy(sizePolicy_PF)
@@ -399,6 +413,11 @@ class TabStatM(QWidget):
         self.glStat.addWidget(self.lbOut2, 1, 2, 1, 1)
 
         self.glCent.addWidget(self.gbStat, 3, 0, 1, 2)
+        
+        
+        #print(self.widCent.sizeHint())
+        self.widCent.setMinimumSize(QSize(756,750))
+        self.setWidget(self.widCent)
 
         self.retranslateUi()
 
@@ -432,7 +451,7 @@ class TabStatM(QWidget):
         for wid,txt in zip((self.lbTitleNet, self.lbTitleOut1, self.lbTitleOut2),stat_txt):
             wid.setText(txt)
         
-        self.btnChange.setText(QCoreApplication.translate("TabStatM", u"\ubcc0\uacbd", None))
+        #self.btnChange.setText(QCoreApplication.translate("TabStatM", u"\ubcc0\uacbd", None))
     # retranslateUi
 
 
