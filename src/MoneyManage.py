@@ -10,10 +10,14 @@ import numpy as np
 import os,sys,json,time,datetime,traceback
 
 
-STD_DAY=730120
+STD_DAY      = 730120
+MAX_DATA_CNT = 10000
 
 
 class NotInitalizedError(Exception):
+    pass
+
+class MaxDataCountError(Exception):
     pass
 
 
@@ -56,24 +60,18 @@ class Data(QStandardItemModel):
     ]
     __data_name   = ('date', 'type', 'src', 'det', 'val', 'desc')
     
-    __parse_date  = lambda x: datetime.date.fromordinal(x+STD_DAY).isoformat()
-    __parse_vdate = np.vectorize(__parse_date)
+    __qitem_vec   = np.vectorize(lambda x: QStandardItem(str(x)))
+    __parse_vdate = np.vectorize(lambda x: datetime.date.fromordinal(x+STD_DAY).isoformat())
     
     __empty_arr   = np.array((0,0,0,0,0,''), __data_form)
     
     column_count=len(__header_text)
     
     def __init__(self,parent):
-        def qitem(obj):
-            item=QStandardItem(str(obj))
-            item.setEditable(False)
-            return item
-        
         super().__init__(0,0,parent)
         self.setHorizontalHeaderLabels(self.__header_text)
         
         self.__parse_vdet  = np.vectorize(self.__parse_det)
-        self.__qitem_vec   = np.vectorize(qitem)
         
         self.__version    = 1
         
@@ -84,7 +82,7 @@ class Data(QStandardItemModel):
         
         self.list_detail = (self.in_type, self.out_type, self.sources)
         
-        self.__data = np.empty((10000,), self.__data_form)
+        self.__data = np.empty((MAX_DATA_CNT,), self.__data_form)
         
         self.type.set_data(self.__type_text[:-1])
         
@@ -104,8 +102,8 @@ class Data(QStandardItemModel):
         self.sources.is_cash=data['is_cash']
         
         self.row_count=len(data['data'])
-        if self.row_count>10000:
-            raise ValueError('Too much data: Please contact to developer')
+        if self.row_count>MAX_DATA_CNT:
+            raise MaxDataCountError
         else:
             raw_data=list(map(tuple,data['data']))
             self.__data = np.asarray(raw_data,self.__data_form)
@@ -142,10 +140,10 @@ class Data(QStandardItemModel):
         
         self.setHorizontalHeaderLabels(self.__header_text)
         
-        if self.row_count<10000:
+        if self.row_count<MAX_DATA_CNT:
             self.__data=np.append(
-                np.asarray(raw_data               , self.__data_form),
-                np.empty  ((10000-self.row_count,), self.__data_form)
+                np.asarray(raw_data                      , self.__data_form),
+                np.empty  ((MAX_DATA_CNT-self.row_count,), self.__data_form)
             )
     
     def __packer(self):
@@ -280,35 +278,53 @@ class Data(QStandardItemModel):
         return data
     
     #getter/setter func
-    def add_data(self,date,type_,src,det,val,desc):
-        try:
-            src_txt=self.sources.get_data()
-            type_index=self.__type_text.index(type_)
-            
-            if type_index==0:
-                det_index=self.in_type.get_data().index(det)
-            elif type_index==1:
-                det_index=self.out_type.get_data().index(det)
-            elif type_index==2:
-                det_index=src_txt.index(det)
-            else:
-                raise ValueError
-            
-            parsed_data=(
-                datetime.date.fromisoformat(date).toordinal()-STD_DAY,
-                type_index,
-                src_txt.index(src),
-                det_index,
-                int(val),
-                desc
-            )
-        except:
-            raise ValueError('Tried to add data with wrong arguments')
+    def add_data(self,*args):
+        assert len(args)==6
+        date,type_,src,det,val,desc=args
+        
+        if self.row_count>=MAX_DATA_CNT:
+            raise MaxDataCountError
         else:
-            self.appendRow(self.__qitem_vec((date,type_,src,det,val,desc)).tolist())
-            self.__data[self.row_count]=parsed_data
-            self.row_count+=1
-            return parsed_data
+            try:
+                date=datetime.date.fromisoformat(date).toordinal()-STD_DAY
+                src_txt=self.sources.get_data()
+                type_=self.__type_text.index(type_)
+                
+                if type_==0:
+                    det=self.in_type.get_data().index(det)
+                elif type_==1:
+                    det=self.out_type.get_data().index(det)
+                elif type_==2:
+                    det=src_txt.index(det)
+                else:
+                    raise ValueError
+                
+                parsed_data=(
+                    date              ,
+                    type_             ,
+                    src_txt.index(src),
+                    det               ,
+                    int(val)          ,
+                    desc              
+                )
+            except:
+                raise ValueError('Tried to add data with wrong arguments')
+            else:
+                real_date=self.__data[:self.row_count]['date']
+                if date>=real_date[-1]: #append(=insert at end)
+                    self.appendRow(self.__qitem_vec(args).tolist())
+                    self.__data[self.row_count]=parsed_data
+                else:
+                    index    = np.searchsorted(real_date,date,'right')
+                    tmp_list = np.array(parsed_data,self.__data_form)
+                    self.insertRow(index,self.__qitem_vec(args).tolist())
+                    if not index:
+                        self.__data = np.append(tmp_list,self.__data[:MAX_DATA_CNT-1])
+                    else:
+                        tmp_list    = np.append(self.__data[:index],tmp_list)
+                        self.__data = np.append(tmp_list,self.__data[index:MAX_DATA_CNT-1])
+                self.row_count+=1
+                return parsed_data
     
     def del_data(self,row_no):
         self.removeRow(row_no)
@@ -342,18 +358,13 @@ class Stat_Data(QStandardItemModel):
     __type_col  = ('income_src', 'outcome_src')
     __type_col2 = ('income_typ', 'outcome_typ')
     column_count=len(__header_text)
+        
+    __qitem_vec = np.vectorize(lambda x: QStandardItem(str(x)))
     
     
     def __init__(self,parent=None):
-        def qitem(obj):
-            item=QStandardItem(str(obj))
-            item.setEditable(False)
-            return item
-        
         super().__init__(0,0,parent=None)
         self.setHorizontalHeaderLabels(self.__header_text)
-        
-        self.__qitem_vec = np.vectorize(qitem)
         
         self.months=ComboData()
         
@@ -385,7 +396,24 @@ class Stat_Data(QStandardItemModel):
         if month:
             index = self.__month_list.index(month)
             d_c   = self.__data[index].copy()
-            return d_c
+            
+            cash = 0
+            for s in range(self.__len[0]):
+                if s in self.__cash_src:
+                    cash+=d_c[2][s]
+            
+            c2 = d_c[2].sum() #current
+            c3 = d_c[3].sum() #income_src
+            c4 = d_c[4].sum() #outcome_src
+            c5 = d_c[5].sum() #income_typ
+            c6 = d_c[6].sum() #outcome_typ
+            c7 = d_c[7].sum() #move_in
+            c8 = d_c[8].sum() #move_out
+            
+            if c3!=c5 or c4!=c6 or c7!=c8:
+                raise ValueError
+            else:
+                return (d_c,map(str,(c3,c4,c2,cash,c7,c3-c4,'','')))
     
     def set_data(self,data):
         if self.__initalized:
@@ -425,32 +453,26 @@ class Stat_Data(QStandardItemModel):
                 first_date_m = datetime.date(y,  m  ,1).toordinal()-STD_DAY
                 last_date_m  = datetime.date(*next_m,1).toordinal()-STD_DAY
                 month_data=data[(data['date']>=first_date_m)&(data['date']<last_date_m)]
-                #print(k,y,m,first_date_m,last_date_m,month_data)
                 
                 if month_data.size:
                     for t in range(2):
                         for s in range(self.__len[0]):
                             type_sum=month_data[(month_data['type']==t)&(month_data['src']==s)]['val'].sum()
-                            #print(t,s,type_sum)
                             self.__data[k][self.__type_col[t]][s]=type_sum
                     
                     for d in range(self.__len[1]):
                         type_sum=month_data[(month_data['type']==0)&(month_data['det']==d)]['val'].sum()
-                        #print(0,d,type_sum)
                         self.__data[k]['income_typ'][d]=type_sum
                     
                     for d in range(self.__len[2]):
                         type_sum=month_data[(month_data['type']==1)&(month_data['det']==d)]['val'].sum()
-                        #print(1,d,type_sum)
                         self.__data[k]['outcome_typ'][d]=type_sum
                     
                     for s in range(self.__len[0]):
                         type_sum_o=month_data[(month_data['type']==2)&(month_data['src']==s)]['val'].sum()
-                        #print(2,s,type_sum_o)
                         self.__data[k]['move_out'][s]=type_sum_o
                         
                         type_sum_i=month_data[(month_data['type']==2)&(month_data['det']==s)]['val'].sum()
-                        #print(2,s,type_sum_i)
                         self.__data[k]['move_in'][s]=type_sum_i
                     
                     d_c=self.__data[k]
@@ -488,7 +510,6 @@ class Stat_Data(QStandardItemModel):
                     self.__data[k]['current']=last_month['current'].copy()
             
             self.months.set_data(['-']+self.__real_month)
-            #print(self.__data)
         else:
             raise NotInitalizedError
         
@@ -501,23 +522,21 @@ class Stat_Data(QStandardItemModel):
             next_m=(d.year,d.month+1)
         first_date_m = datetime.date(*m_c   ,1).toordinal()-STD_DAY
         last_date_m  = datetime.date(*next_m,1).toordinal()-STD_DAY
-        #print(m_c,f'{m_c[0]}-{m_c[1]}')
         
         if m_c in self.__month_list:
-            if not m_c in self.__real_month:
+            month_txt=f'{m_c[0]}-{m_c[1]}'
+            if not month_txt in self.__real_month:
                 last_index=len(self.__real_month)-2
-                txt=f'{m_c[0]}-{m_c[1]}'
                 
-                self.__real_month.append(txt)
+                self.__real_month.append(month_txt)
                 self.__real_month.sort()
                 insert=True
                 
-                index_m = self.__real_month.index(txt)
-                print(index_m,last_index)
+                index_m = self.__real_month.index(month_txt)
                 if index_m>last_index:
-                    self.months.appendRow(QStandardItem(txt))
+                    self.months.appendRow(QStandardItem(month_txt))
                 else:
-                    self.months.insertRow(index_m+1,QStandardItem(txt))
+                    self.months.insertRow(index_m+1,QStandardItem(month_txt))
             else:
                 insert=False
             
@@ -528,14 +547,13 @@ class Stat_Data(QStandardItemModel):
             type_ = data[1]
             src   = data[2]
             val   = data[4]
-            if type_==3:
+            if type_==2:
                 dst=data[3]
                 d_c['move_in' ][src]+=val
                 d_c['move_out'][src]+=val
                 d_c['current'] [src]+=val
             else:
                 det=data[3]
-                #print(d_c[self.__type_col [type_]][src].dtype,d_c[self.__type_col2[type_]][src].dtype,type(val))
                 d_c[self.__type_col [type_]][src]+=val
                 d_c[self.__type_col2[type_]][det]+=val
                 d_c['current'][src]-=val
@@ -596,8 +614,6 @@ class Stat_Data(QStandardItemModel):
                 self.__month_list = self.__month_list+tmp_m
             else:
                 raise ValueError('Cannnot parse data')
-            
-            #print(self.__month_list,self.__real_month)
             
             l=len(tmp_m)
             last_month = self.__data[-1]
@@ -703,7 +719,6 @@ class MainWin(QMainWindow,Ui_MainWin):
         '''
     
     def __add_data(self):
-        #print('add_data')
         try:
             date   = self.tabData.lnDate.text()
             type_  = self.tabData.cbType.currentText()
@@ -712,11 +727,8 @@ class MainWin(QMainWindow,Ui_MainWin):
             cost   = self.tabData.lnCost.text()
             desc   = self.tabData.lnDetail.text()
             
-            #print(1)
             parsed = self.__data.add_data(date,type_,src,detail,cost,desc)
-            #print(2)
             data   = self.__stat.add_data(parsed,self.tabStatM.cbMonth.currentText())
-            #print(3)
             
             self.__set_month(self.tabStatM.cbMonth.currentText())
         except:
@@ -739,19 +751,29 @@ class MainWin(QMainWindow,Ui_MainWin):
         self.__resize()
     
     def __set_month(self,text):
-        #print('set_month',text)
         if text and text!='-': #if month -> set data
             m_c=tuple(map(int,text.split('-')))
-            data=self.__stat.get_data_month(m_c)
-            print(data,type(data),data.dtype)
-            
-            for (wids,_,_),type_ in zip(self.__data_labels,self.__stat.data_name[2:]):
-                for b,wid in enumerate(wids):
-                    wid.setText(str(data[type_][b]))
+            raw_data=self.__stat.get_data_month(m_c)
+            if raw_data:
+                data,sums=raw_data
+                for (wids,_,_),type_ in zip(self.__data_labels,self.__stat.data_name[2:]):
+                    for b,wid in enumerate(wids):
+                        wid.setText(str(data[type_][b]))
+                for wid,sum_ in zip(self.__sum_labels,sums):
+                    wid.setText(sum_)
         else: #if not month -> clear
-            pass
+            for wids,_,_ in self.__data_labels:
+                for wid in wids:
+                    wid.setText('')
+            for wid in self.__sum_labels:
+                wid.setText('')
     
     def __set_stat_type(self):
+        try:
+            self.tabStatM.cbMonth.currentTextChanged.disconnect()
+        except:
+            pass
+        
         data,sources,in_type,out_type,is_cash=self.__data.get_data()
         self.__stat.set_type(sources,in_type,out_type,is_cash)
         self.__stat.set_data(data)
@@ -793,6 +815,16 @@ class MainWin(QMainWindow,Ui_MainWin):
             (self.tabStatM.lbDataMoveIn   , self.tabStatM.gbMove   , self.tabStatM.glMove   ),
             (self.tabStatM.lbDataMoveOut  , self.tabStatM.gbMove   , self.tabStatM.glMove   )
         )
+        self.__sum_labels=(
+            self.tabStatM.lbSumIncome ,
+            self.tabStatM.lbSumOutcome,
+            self.tabStatM.lbSumCurrent,
+            self.tabStatM.lbSumCash   ,
+            self.tabStatM.lbSumMove   ,
+            self.tabStatM.lbNet       ,
+            self.tabStatM.lbOut1      ,
+            self.tabStatM.lbOut2
+        )
         
         
         for k,txt in enumerate(sources):
@@ -801,6 +833,12 @@ class MainWin(QMainWindow,Ui_MainWin):
             lbTitleCurrent = QLabel(txt,self.tabStatM.gbCurrent)
             lbTitleMoveIn  = QLabel(txt,self.tabStatM.gbMove)
             lbTitleMoveOut = QLabel(txt,self.tabStatM.gbMove)
+            
+            lbTitleIncome .setAlignment(Qt.AlignCenter)
+            lbTitleOutcome.setAlignment(Qt.AlignCenter)
+            lbTitleCurrent.setAlignment(Qt.AlignCenter)
+            lbTitleMoveIn .setAlignment(Qt.AlignCenter)
+            lbTitleMoveOut.setAlignment(Qt.AlignCenter)
             
             self.tabStatM.lbTitleIncomeS .append(lbTitleIncome)
             self.tabStatM.lbTitleOutcomeS.append(lbTitleOutcome)
@@ -826,6 +864,12 @@ class MainWin(QMainWindow,Ui_MainWin):
             self.tabStatM.lbDataMoveIn  .append(lbDataMoveIn)
             self.tabStatM.lbDataMoveOut .append(lbDataMoveOut)
             
+            lbDataIncome .setAlignment(Qt.AlignCenter)
+            lbDataOutcome.setAlignment(Qt.AlignCenter)
+            lbDataCurrent.setAlignment(Qt.AlignCenter)
+            lbDataMoveIn .setAlignment(Qt.AlignCenter)
+            lbDataMoveOut.setAlignment(Qt.AlignCenter)
+            
             self.tabStatM.glIncome .addWidget(lbDataIncome ,k+2,3,1,1)
             self.tabStatM.glOutcome.addWidget(lbDataOutcome,k+2,3,1,1)
             self.tabStatM.glCurrent.addWidget(lbDataCurrent,k+2,1,1,1)
@@ -834,21 +878,31 @@ class MainWin(QMainWindow,Ui_MainWin):
         
         for k,txt in enumerate(in_type):
             lbTitleIncome = QLabel(txt,self.tabStatM.gbIncome)
+            lbTitleIncome.setAlignment(Qt.AlignCenter)
             self.tabStatM.lbTitleIncomeT.append(lbTitleIncome)
             self.tabStatM.glIncome.addWidget(lbTitleIncome,k+2,0,1,1)
             
             lbDataIncome = QLabel(self.tabStatM.gbIncome)
+            lbDataIncome.setAlignment(Qt.AlignCenter)
             self.tabStatM.lbDataIncomeT.append(lbDataIncome)
             self.tabStatM.glIncome.addWidget(lbDataIncome,k+2,1,1,1)
         
         for k,txt in enumerate(out_type):
             lbTitleOutcome = QLabel(txt,self.tabStatM.gbOutcome)
+            lbTitleOutcome.setAlignment(Qt.AlignCenter)
             self.tabStatM.lbTitleOutcomeT.append(lbTitleOutcome)
             self.tabStatM.glOutcome.addWidget(lbTitleOutcome,k+2,0,1,1)
             
             lbDataOutcome = QLabel(self.tabStatM.gbOutcome)
+            lbDataOutcome.setAlignment(Qt.AlignCenter)
             self.tabStatM.lbDataOutcomeT.append(lbDataOutcome)
             self.tabStatM.glOutcome.addWidget(lbDataOutcome,k+2,1,1,1)
+        
+        for wid in self.__sum_labels:
+            wid.setText('')
+        
+        
+        self.tabStatM.cbMonth.currentTextChanged.connect(self.__set_month)
         
     def __load_as(self):
         path=QFileDialog.getOpenFileName(self,'불러오기')[0]
@@ -880,8 +934,11 @@ class MainWin(QMainWindow,Ui_MainWin):
                 self.__set_stat_type()
             except:
                 print(traceback.format_exc())
-                response=QMessageBox.question(self,'재시도','불러오는 중 오류 발생\n재시도?',QMessageBox.Retry|QMessageBox.Cancel)
-                if response==QMessageBox.Cancel:
+                response=QMessageBox.question(
+                    self,'재시도','불러오는 중 오류 발생\n재시도?',
+                    QMessageBox.Retry|QMessageBox.Abort
+                )
+                if response==QMessageBox.Abort:
                     break
             else:
                 self.__last_file=path
@@ -907,8 +964,11 @@ class MainWin(QMainWindow,Ui_MainWin):
                 self.__data.save_data(path)
             except:
                 print(traceback.format_exc())
-                response=QMessageBox.question(self,'재시도','저장하는 중 오류 발생\n재시도?',QMessageBox.Retry|QMessageBox.Cancel)
-                if response==QMessageBox.Cancel:
+                response=QMessageBox.question(
+                    self,'재시도','저장하는 중 오류 발생\n재시도?',
+                    QMessageBox.Retry|QMessageBox.Abort
+                )
+                if response==QMessageBox.Abort:
                     break
             else:
                 self.__last_file=path
@@ -928,8 +988,11 @@ class MainWin(QMainWindow,Ui_MainWin):
                         self.__data.import_data(type_,file_path,type_path)
                     except:
                         print(traceback.format_exc())
-                        response=QMessageBox.question(self,'재시도','가져오는 중 오류 발생\n재시도?',QMessageBox.Retry|QMessageBox.Cancel)
-                        if response==QMessageBox.Cancel:
+                        response=QMessageBox.question(
+                            self,'재시도','가져오는 중 오류 발생\n재시도?',
+                            QMessageBox.Retry|QMessageBox.Abort
+                        )
+                        if response==QMessageBox.Abort:
                             break
                     else:
                         break
@@ -947,8 +1010,11 @@ class MainWin(QMainWindow,Ui_MainWin):
                         self.__data.export_data(type_,file_path,type_path)
                     except:
                         print(traceback.format_exc())
-                        response=QMessageBox.question(self,'재시도','내보내는 중 오류 발생\n재시도?',QMessageBox.Retry|QMessageBox.Cancel)
-                        if response==QMessageBox.Cancel:
+                        response=QMessageBox.question(
+                            self,'재시도','내보내는 중 오류 발생\n재시도?',
+                            QMessageBox.Retry|QMessageBox.Abort
+                        )
+                        if response==QMessageBox.Abort:
                             break
                     else:
                         break
@@ -1004,8 +1070,14 @@ class MainWin(QMainWindow,Ui_MainWin):
         if self.__saved:
             event.accept()
         else:
-            response=QMessageBox.question(self,'종료','종료하시겠습니까?')
-            if response==QMessageBox.Yes:
+            response=QMessageBox.warning(
+                self,'종료','저장하시겠습니까?',
+                QMessageBox.Save|QMessageBox.Discard|QMessageBox.Cancel
+            )
+            if response==QMessageBox.Save:
+                self.__save()
+                event.accept()
+            elif response==QMessageBox.Discard:
                 event.accept()
             else:
                 event.ignore()

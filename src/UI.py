@@ -135,6 +135,7 @@ class TabData(QWidget):
         self.vlData.setObjectName(u"vlData")
         self.treeData = QTreeView(self)
         self.treeData.setObjectName(u"treeData")
+        self.treeData.setEditTriggers(QAbstractItemView.NoEditTriggers)
 
         self.vlData.addWidget(self.treeData)
 
@@ -230,6 +231,7 @@ class TabStatS(QWidget):
         
         self.treeStatS = QTreeView(self)
         self.treeStatS.setObjectName(u"treeStatS")
+        self.treeStatS.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.glSum.addWidget(self.treeStatS, 0, 0, 1, 1)
         self.retranslateUi()
     
@@ -340,6 +342,16 @@ class TabStatM(QScrollArea):
         self.lbSumCurrent.setAlignment(Qt.AlignCenter)
         self.glCurrent.addWidget(self.lbSumCurrent, 0, 1, 1, 1)
 
+        self.lbTitleCash = QLabel(self.gbCurrent)
+        self.lbTitleCash.setObjectName(u"lbTitleCash")
+        self.lbTitleCash.setAlignment(Qt.AlignCenter)
+        self.glCurrent.addWidget(self.lbTitleCash, 1, 0, 1, 1)
+
+        self.lbSumCash = QLabel(self.gbCurrent)
+        self.lbSumCash.setObjectName(u"lbSumCash")
+        self.lbSumCash.setAlignment(Qt.AlignCenter)
+        self.glCurrent.addWidget(self.lbSumCash, 1, 1, 1, 1)
+
         self.glCent.addWidget(self.gbCurrent, 1, 1, 1, 1)
 
 
@@ -440,6 +452,7 @@ class TabStatM(QScrollArea):
         
         self.gbCurrent.setTitle(QCoreApplication.translate("TabStatM", u"\ud604 \uc7ac\uc0b0", None))
         self.lbTitleCurrent.setText(QCoreApplication.translate("TabStatM", u"\ucd1d \uc7ac\uc0b0", None))
+        self.lbTitleCash.setText(QCoreApplication.translate("TabStatM", u"\ud604\uae08\uc131", None))
         
         move_txt=('총액','이동_入','이동_出')
         self.gbMove.setTitle(QCoreApplication.translate("TabStatM", u"\uc774\ub3d9\uc561", None))
