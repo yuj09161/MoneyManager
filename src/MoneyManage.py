@@ -327,9 +327,11 @@ class Data(QStandardItemModel):
                 return parsed_data
     
     def del_data(self,row_no):
+        data = self.__data[row_no]
         self.removeRow(row_no)
-        self.__data=np.append(np.delete(self.__data,row_no),self.__empty_arr)
+        self.__data = np.append(np.delete(self.__data,row_no),self.__empty_arr)
         self.row_count-=1
+        return data
     
     def get_data(self):
         sources  = self.sources .get_data()
@@ -513,15 +515,9 @@ class Stat_Data(QStandardItemModel):
         else:
             raise NotInitalizedError
         
-    def add_data(self,data,current_month):
+    def add_data(self,data):
         d=datetime.date.fromordinal(data[0]+STD_DAY)
         m_c=(d.year,d.month)
-        if m_c[1]==12:
-            next_m=(d.year+1,d.month)
-        else:
-            next_m=(d.year,d.month+1)
-        first_date_m = datetime.date(*m_c   ,1).toordinal()-STD_DAY
-        last_date_m  = datetime.date(*next_m,1).toordinal()-STD_DAY
         
         if m_c in self.__month_list:
             month_txt=f'{m_c[0]}-{m_c[1]}'
@@ -547,17 +543,21 @@ class Stat_Data(QStandardItemModel):
             type_ = data[1]
             src   = data[2]
             val   = data[4]
-            if type_==2:
+            
+            if type_==2: #move
                 dst=data[3]
-                d_c['move_in' ][src]+=val
+                d_c['move_in' ][dst]+=val
+                d_c['current'] [dst]+=val
                 d_c['move_out'][src]+=val
-                d_c['current'] [src]+=val
-            else:
+                d_c['current'] [src]-=val
+            else: #income or outcome
                 det=data[3]
                 d_c[self.__type_col [type_]][src]+=val
                 d_c[self.__type_col2[type_]][det]+=val
-                d_c['current'][src]-=val
-                d_c['current'][det]+=val
+                if type_==0:
+                    d_c['current'][src]+=val
+                elif type_==1:
+                    d_c['current'][src]-=val
             
             #recalculate summary
             cash=0
@@ -581,9 +581,7 @@ class Stat_Data(QStandardItemModel):
                     self.insertRow(index2,items)
                 else:
                     for k,item in enumerate(items):
-                        self.setItem(index2-1,k,item)
-            
-            return self.get_data_month(m_c)
+                        self.setItem(index2,k,item)
         else:
             '''
             if d<self.__first_date:
@@ -630,8 +628,55 @@ class Stat_Data(QStandardItemModel):
             elif d<self.__first_date:
                 self.__data = np.append(tmp_data,self.__data)
                 self.__first_date=d
+        
+    def del_data(self,data):
+        d=datetime.date.fromordinal(data[0]+STD_DAY)
+        m_c=(d.year,d.month)
+        
+        if m_c in self.__month_list:
+            index  = self.__month_list.index(m_c)
+            index2 = self.__real_month.index(f'{m_c[0]}-{m_c[1]}')
+            d_c    = self.__data[index]
             
-            return self.add_data(data,current_month)
+            type_ = data[1]
+            src   = data[2]
+            val   = data[4]
+            
+            if type_==2: #move
+                dst=data[3]
+                d_c['move_in' ][dst]-=val
+                d_c['current'] [dst]-=val
+                d_c['move_out'][src]-=val
+                d_c['current'] [src]+=val
+            else: #income or outcome
+                det=data[3]
+                d_c[self.__type_col [type_]][src]-=val
+                d_c[self.__type_col2[type_]][det]-=val
+                if type_==0:
+                    d_c['current'][src]-=val
+                elif type_==1:
+                    d_c['current'][src]+=val
+            
+            #recalculate summary
+            cash=0
+            last_month=self.__data[index-1]
+            for s in self.__cash_src:
+                cash+=d_c['current'][s]
+            
+            c2 = d_c[2].sum() #current
+            c3 = d_c[3].sum() #income_src
+            c4 = d_c[4].sum() #outcome_src
+            c5 = d_c[5].sum() #income_typ
+            c6 = d_c[6].sum() #outcome_typ
+            c7 = d_c[7].sum() #move_in
+            c8 = d_c[8].sum() #move_out
+            
+            if c3!=c5 or c4!=c6 or c7!=c8:
+                raise ValueError
+            else:
+                items=self.__qitem_vec((f'{m_c[0]}-{m_c[1]}',c2,cash,c3-c4,c3,c4,c7)).tolist()
+                for k,item in enumerate(items):
+                    self.setItem(index2,k,item)
     
     @property
     def initalized(self):
@@ -728,8 +773,7 @@ class MainWin(QMainWindow,Ui_MainWin):
             desc   = self.tabData.lnDetail.text()
             
             parsed = self.__data.add_data(date,type_,src,detail,cost,desc)
-            data   = self.__stat.add_data(parsed,self.tabStatM.cbMonth.currentText())
-            
+            self.__stat.add_data(parsed)
             self.__set_month(self.tabStatM.cbMonth.currentText())
         except:
             import traceback
@@ -747,8 +791,11 @@ class MainWin(QMainWindow,Ui_MainWin):
             self.tabData.lnDetail.setText('')
     
     def __del_data(self,data_no):
-        self.__data.del_data(data_no.row())
+        data = self.__data.del_data(data_no.row())
+        self.__stat.del_data(data)
+        self.__set_month(self.tabStatM.cbMonth.currentText())
         self.__resize()
+        self.__saved=False
     
     def __set_month(self,text):
         if text and text!='-': #if month -> set data
@@ -855,26 +902,26 @@ class MainWin(QMainWindow,Ui_MainWin):
             lbDataIncome  = QLabel(self.tabStatM.gbIncome)
             lbDataOutcome = QLabel(self.tabStatM.gbOutcome)
             lbDataCurrent = QLabel(self.tabStatM.gbCurrent)
-            lbDataMoveIn  = QLabel(self.tabStatM.gbMove)
             lbDataMoveOut = QLabel(self.tabStatM.gbMove)
+            lbDataMoveIn  = QLabel(self.tabStatM.gbMove)
             
             self.tabStatM.lbDataIncomeS .append(lbDataIncome)
             self.tabStatM.lbDataOutcomeS.append(lbDataOutcome)
             self.tabStatM.lbDataCurrent .append(lbDataCurrent)
-            self.tabStatM.lbDataMoveIn  .append(lbDataMoveIn)
             self.tabStatM.lbDataMoveOut .append(lbDataMoveOut)
+            self.tabStatM.lbDataMoveIn  .append(lbDataMoveIn)
             
             lbDataIncome .setAlignment(Qt.AlignCenter)
             lbDataOutcome.setAlignment(Qt.AlignCenter)
             lbDataCurrent.setAlignment(Qt.AlignCenter)
-            lbDataMoveIn .setAlignment(Qt.AlignCenter)
             lbDataMoveOut.setAlignment(Qt.AlignCenter)
+            lbDataMoveIn .setAlignment(Qt.AlignCenter)
             
             self.tabStatM.glIncome .addWidget(lbDataIncome ,k+2,3,1,1)
             self.tabStatM.glOutcome.addWidget(lbDataOutcome,k+2,3,1,1)
             self.tabStatM.glCurrent.addWidget(lbDataCurrent,k+2,1,1,1)
-            self.tabStatM.glMove   .addWidget(lbDataMoveIn ,k+2,1,1,1)
-            self.tabStatM.glMove   .addWidget(lbDataMoveOut,k+2,3,1,1)
+            self.tabStatM.glMove   .addWidget(lbDataMoveOut,k+2,1,1,1)
+            self.tabStatM.glMove   .addWidget(lbDataMoveIn ,k+2,3,1,1)
         
         for k,txt in enumerate(in_type):
             lbTitleIncome = QLabel(txt,self.tabStatM.gbIncome)

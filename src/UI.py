@@ -454,7 +454,7 @@ class TabStatM(QScrollArea):
         self.lbTitleCurrent.setText(QCoreApplication.translate("TabStatM", u"\ucd1d \uc7ac\uc0b0", None))
         self.lbTitleCash.setText(QCoreApplication.translate("TabStatM", u"\ud604\uae08\uc131", None))
         
-        move_txt=('총액','이동_入','이동_出')
+        move_txt=('총액','이동_出','이동_入')
         self.gbMove.setTitle(QCoreApplication.translate("TabStatM", u"\uc774\ub3d9\uc561", None))
         for wid,txt in zip(self.lbTitleMove,move_txt):
             wid.setText(txt)
