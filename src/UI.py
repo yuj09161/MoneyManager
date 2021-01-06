@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 from PySide6.QtCore import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
@@ -24,40 +25,226 @@ sizePolicy_EE.setHorizontalStretch(0)
 sizePolicy_EE.setVerticalStretch(0)
 
 
+class Ui_Txt:
+    def setupUi(self,Win,title,info_text):
+        if not self.objectName():
+            self.setObjectName(u"info")
+        Win.setFixedSize(600, 500)
+        Win.setWindowFlags(self.windowFlags()^Qt.WindowMinMaxButtonsHint)
+        
+        self.centralwidget = QWidget(self)
+        self.centralwidget.setObjectName(u"centralwidget")
+        
+        self.vlCent = QVBoxLayout(self.centralwidget)
+        self.vlCent.setObjectName(u"vlCent")
+        
+        
+        self.pteMain = QPlainTextEdit(self.centralwidget)
+        self.pteMain.setObjectName(u"pteMain")
+        self.pteMain.setReadOnly(True)
+        self.vlCent.addWidget(self.pteMain)
+
+
+        self.widBot = QWidget(self.centralwidget)
+        self.widBot.setObjectName(u"widBot")
+        self.hlBot = QHBoxLayout(self.widBot)
+        self.hlBot.setObjectName(u"hlBot")
+        self.hlBot.setContentsMargins(0, 0, 0, 0)
+        
+        self.sp = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.hlBot.addItem(self.sp)
+
+        self.btnExit = QPushButton(self.widBot)
+        self.btnExit.setObjectName(u"btnExit")
+        self.hlBot.addWidget(self.btnExit)
+        
+        self.vlCent.addWidget(self.widBot)
+
+
+        self.setCentralWidget(self.centralwidget)
+        
+        self.retranslateUi(title,info_text)
+    
+    def retranslateUi(self,title,info_text):
+        self.setWindowTitle(title)
+        self.pteMain.setPlainText(info_text)
+        self.btnExit.setText(QCoreApplication.translate("info", u"\ub2eb\uae30", None))
+
+
+class Ui_Info(Ui_Txt):
+    def setupUi(self,Win,title,info_text):
+        super().setupUi(Win,title,info_text)
+        
+        self.btnQt = QPushButton(self.centralwidget)
+        self.btnQt.setObjectName(u"btnQt")
+        self.hlBot.insertWidget(0, self.btnQt)
+        
+        self.retranslateUi_1()
+    
+    def retranslateUi_1(self):
+        self.btnQt.setText(QCoreApplication.translate("info", u"About Qt", None))
+
+
+class Ui_Login:
+    def setupUi(self, Login):
+        if not Login.objectName():
+            Login.setObjectName(u"Login")
+        Login.resize(400, 100)
+        Login.setWindowFlags(Qt.Dialog)
+        
+        self.centralwidget = QWidget(Login)
+        self.centralwidget.setObjectName(u"centralwidget")
+        self.glCent = QGridLayout(self.centralwidget)
+        self.glCent.setObjectName(u"glCent")
+
+        self.lbTitleUser = QLabel(self.centralwidget)
+        self.lbTitleUser.setObjectName(u"lbTitleUser")
+        self.lbTitleUser.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+        self.glCent.addWidget(self.lbTitleUser, 0, 0, 1, 1)
+
+        self.lbTitlePass = QLabel(self.centralwidget)
+        self.lbTitlePass.setObjectName(u"lbTitlePass")
+        self.lbTitlePass.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+        self.glCent.addWidget(self.lbTitlePass, 0, 2, 1, 1)
+        
+        self.lbTitlePath = QLabel(self.centralwidget)
+        self.lbTitlePath.setObjectName(u"lbTitlePath")
+        self.lbTitlePath.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+        self.glCent.addWidget(self.lbTitlePath, 2, 0, 1, 1)
+
+        self.lnUser = QLineEdit(self.centralwidget)
+        self.lnUser.setObjectName(u"lnUser")
+        self.glCent.addWidget(self.lnUser, 0, 1, 1, 1)
+
+        self.lnPass = QLineEdit(self.centralwidget)
+        self.lnPass.setObjectName(u"lnPass")
+        self.lnPass.setEchoMode(QLineEdit.Password)
+        self.glCent.addWidget(self.lnPass, 0, 3, 1, 1)
+
+        self.lnPath = QLineEdit(self.centralwidget)
+        self.lnPath.setObjectName(u"lnPath")
+        self.glCent.addWidget(self.lnPath, 2, 1, 1, 3)
+
+        self.widBot = QWidget(self.centralwidget)
+        self.widBot.setObjectName(u"widBot")
+        self.hlBot = QHBoxLayout(self.widBot)
+        self.hlBot.setObjectName(u"hlBot")
+        self.hlBot.setContentsMargins(0, 0, 0, 0)
+        
+        self.chkSave = QCheckBox(self.widBot)
+        self.chkSave.setObjectName(u"chkSave")
+        self.hlBot.addWidget(self.chkSave)
+
+        self.btnFile = QPushButton(self.widBot)
+        self.btnFile.setObjectName(u"btnFile")
+        self.hlBot.addWidget(self.btnFile)
+
+        self.sp = QSpacerItem(196, 21, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.hlBot.addItem(self.sp)
+        
+        self.chkEnc = QCheckBox(self.widBot)
+        self.chkEnc.setObjectName(u"chkEnc")
+        self.hlBot.addWidget(self.chkEnc)
+
+        self.btnConnect = QPushButton(self.widBot)
+        self.btnConnect.setObjectName(u"btnConnect")
+        self.hlBot.addWidget(self.btnConnect)
+
+        self.glCent.addWidget(self.widBot, 3, 0, 1, 4)
+
+        Login.setCentralWidget(self.centralwidget)
+
+        self.retranslateUi(Login)
+
+        QMetaObject.connectSlotsByName(Login)
+    # setupUi
+
+    def retranslateUi(self, Login):
+        Login.setWindowTitle(QCoreApplication.translate("Login", u"\uc11c\ubc84 \ub85c\uadf8\uc778", None))
+        self.lbTitleUser.setText(QCoreApplication.translate("Login", u"\uc0ac\uc6a9\uc790\uba85: ", None))
+        self.lbTitlePass.setText(QCoreApplication.translate("Login", u"\uc554\ud638: ", None))
+        self.lbTitlePath.setText(QCoreApplication.translate("Login", u"\uc11c\ubc84 \uc8fc\uc18c: ", None))
+        self.chkSave.setText(QCoreApplication.translate("Login", u"\uacc4\uc815 \uc800\uc7a5?", None))
+        self.btnFile.setText(QCoreApplication.translate("Login", u"\ud30c\uc77c \uc120\ud0dd", None))
+        #self.lnUser.setPlaceholderText(QCoreApplication.translate("Login", u"anonymous", None))
+        #self.lnPass.setPlaceholderText(QCoreApplication.translate("Login", u"hys.moneymanage", None))
+        #self.lnPath.setPlaceholderText(QCoreApplication.translate("Login", u"/data.json", None))
+        self.chkEnc.setText(QCoreApplication.translate("Login", u"\uc554\ud638\ud654?", None))
+        self.btnConnect.setText(QCoreApplication.translate("Login", u"\uc5f0\uacb0", None))
+    # retranslateUi
+
+
+class Ui_Pg:
+    def setupUi(self, Pg):
+        if not Pg.objectName():
+            Pg.setObjectName(u"Pg")
+        Pg.setFixedSize(200, 70)
+        Pg.setWindowFlags(Qt.SplashScreen)
+        
+        self.centralwidget = QWidget(Pg)
+        self.centralwidget.setObjectName(u"centralwidget")
+        self.vlCent = QVBoxLayout(self.centralwidget)
+        self.vlCent.setObjectName(u"vlCent")
+        
+        self.lbStatus = QLabel(self.centralwidget)
+        self.lbStatus.setObjectName(u"lbStatus")
+        self.lbStatus.setAlignment(Qt.AlignCenter)
+        self.vlCent.addWidget(self.lbStatus)
+
+        self.pgPg = QProgressBar(self.centralwidget)
+        self.pgPg.setObjectName(u"pgPg")
+        self.pgPg.setRange(0,0)
+        self.pgPg.setTextVisible(False)
+        self.vlCent.addWidget(self.pgPg)
+
+        Pg.setCentralWidget(self.centralwidget)
+
+        QMetaObject.connectSlotsByName(Pg)
+    # setupUi
+
+
 class GbAddDelCate(QGroupBox):
     def __init__(self,parent):
         super().__init__(parent)
         
-        self.hlMain = QHBoxLayout(self)
-        self.hlMain.setObjectName(u"hlMain")
-        
+        self.vlMain = QVBoxLayout(self)
+        self.vlMain.setObjectName(u"vlMain")
+
+        self.lvOrd = QListView(self)
+        self.lvOrd.setDragDropMode(QListView.InternalMove)
+        self.vlMain.addWidget(self.lvOrd)
         
         self.widAdd = QWidget(self)
         self.widAdd.setObjectName(u"widAdd")
         sizePolicy_EP.setHeightForWidth(self.widAdd.sizePolicy().hasHeightForWidth())
         self.widAdd.setSizePolicy(sizePolicy_EP)
         
-        self.hlAdd = QHBoxLayout(self.widAdd)
-        self.hlAdd.setObjectName(u"hlAdd")
+        self.glAdd = QGridLayout(self.widAdd)
+        self.glAdd.setObjectName(u"glAdd")
+        self.glAdd.setContentsMargins(0,7,0,7)
         
         self.lnAdd = QLineEdit(self.widAdd)
         self.lnAdd.setObjectName(u"lnAdd")
-        self.hlAdd.addWidget(self.lnAdd)
+        self.lnAdd.setAlignment(Qt.AlignCenter)
+        self.lnAdd.setMaxLength(10)
+        self.glAdd.addWidget(self.lnAdd,0,0,1,1)
 
         self.btnAdd = QPushButton(self.widAdd)
         self.btnAdd.setObjectName(u"btnAdd")
-        self.hlAdd.addWidget(self.btnAdd)
+        self.glAdd.addWidget(self.btnAdd,0,1,2,1)
 
-        self.hlMain.addWidget(self.widAdd)
+        self.vlMain.addWidget(self.widAdd)
 
 
+        '''
         self.line = QFrame(self)
         self.line.setObjectName(u"line")
         self.line.setFrameShape(QFrame.VLine)
         self.line.setFrameShadow(QFrame.Sunken)
         self.hlMain.addWidget(self.line)
-
-
+        '''
+        
+        '''
         self.widDel = QWidget(self)
         self.widDel.setObjectName(u"widDel")
         sizePolicy_EP.setHeightForWidth(self.widDel.sizePolicy().hasHeightForWidth())
@@ -77,25 +264,26 @@ class GbAddDelCate(QGroupBox):
         self.hlDel.addWidget(self.btnDel)
 
         self.hlMain.addWidget(self.widDel)
+        '''
         
         self.retranslateUi()
     
     def retranslateUi(self):
         self.btnAdd.setText(QCoreApplication.translate("MoneyManage", u"\ucd94\uac00", None))
-        self.btnDel.setText(QCoreApplication.translate("MoneyManage", u"\uc0ad\uc81c", None))
+        #self.btnDel.setText(QCoreApplication.translate("MoneyManage", u"\uc0ad\uc81c", None))
 
 
-class GbSrc(GbAddDelCate):
-    def __init__(self,parent):
+class GbAddDelChk(GbAddDelCate):
+    def __init__(self,parent,chk_txt=''):
         super().__init__(parent)
         
-        self.chkCash = QCheckBox(self)
-        self.hlAdd.insertWidget(1,self.chkCash)
+        self.chk = QCheckBox(self)
+        self.glAdd.addWidget(self.chk,1,0,1,1)
         
-        self.retranslateUi_1()
+        self.retranslateUi_1(chk_txt)
     
-    def retranslateUi_1(self):
-        self.chkCash.setText(QCoreApplication.translate("MoneyManage", u"\ud604\uae08\uc131\u003f", None))
+    def retranslateUi_1(self,chk_txt):
+        self.chk.setText(QCoreApplication.translate("MoneyManage", chk_txt, None))
 
 
 class TabCate(QWidget):
@@ -106,17 +294,17 @@ class TabCate(QWidget):
         self.glCate = QGridLayout(self)
         self.glCate.setObjectName(u"glCate")
         
-        self.gbSrc = GbSrc(self)
+        self.gbSrc = GbAddDelChk(self,u"\ud604\uae08\uc131")
         self.gbSrc.setObjectName(u"gbSrc")
         self.glCate.addWidget(self.gbSrc, 0, 0, 1, 1)
 
         self.gbIn = GbAddDelCate(self)
         self.gbIn.setObjectName(u"gbIn")
-        self.glCate.addWidget(self.gbIn, 1, 0, 1, 1)
+        self.glCate.addWidget(self.gbIn, 0, 1, 1, 1)
 
-        self.gbOut = GbAddDelCate(self)
+        self.gbOut = GbAddDelChk(self,u"\ud544\uc218\u003f")
         self.gbOut.setObjectName(u"gbOut")
-        self.glCate.addWidget(self.gbOut, 2, 0, 1, 1)
+        self.glCate.addWidget(self.gbOut, 0, 2, 1, 1)
         
         self.retranslateUi()
     
@@ -202,6 +390,11 @@ class TabData(QWidget):
         self.btnAddData = QPushButton(self.widInput)
         self.btnAddData.setObjectName(u"btnAddData")
         self.glDataIn.addWidget(self.btnAddData, 1, 6, 1, 1)
+        
+        self.btnCancel = QPushButton(self.widInput)
+        self.btnCancel.setObjectName(u"btnCancel")
+        self.btnCancel.hide()
+        self.glDataIn.addWidget(self.btnCancel, 1, 7, 1, 1)
 
         self.vlData.addWidget(self.widInput)
         
@@ -215,6 +408,7 @@ class TabData(QWidget):
         self.lbCost.setText(QCoreApplication.translate("MainWin", u"\uae08\uc561", None))
         self.lbDesc.setText(QCoreApplication.translate("MainWin", u"\uc124\uba85", None))
         self.btnAddData.setText(QCoreApplication.translate("MoneyManage", u"\ub370\uc774\ud130 \ucd94\uac00", None))
+        self.btnCancel.setText(QCoreApplication.translate("MoneyManage", u"\ucde8\uc18c", None))
         
         self.lnDate.setInputMask(r'2\0D9-99-99;_')
         self.lnDate.setValidator(QRegExpValidator('20[1-9_][0-9_]-(0[1-9_]|1[0-2_]|__)-(0[1-9_]|[12][0-9_]|3[01_]|__)'))
@@ -503,6 +697,11 @@ class Ui_MainWin:
         self.fileMenu.addAction(self.acLoad)
         self.fileMenu.addAction(self.acSave)
         self.fileMenu.addAction(self.acSaveAs)
+        
+        self.netMenu = self.fileMenu.addMenu('네트워크')
+        self.acGet = self.netMenu.addAction('다운로드')
+        self.acPut = self.netMenu.addAction('업로드')
+        
         self.fileMenu.addSeparator()
         self.fileMenu.addAction(self.acImport)
         self.fileMenu.addAction(self.acExport)
