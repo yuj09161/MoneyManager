@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from PySide6.QtCore import *
-from PySide6.QtGui import *
+from PySide6.QtCore    import *
+from PySide6.QtGui     import *
 from PySide6.QtWidgets import *
 
 
@@ -489,6 +489,7 @@ class TabStatM(QScrollArea):
         for x,y,w,h in ((0,0,1,2),(1,0,1,2),(1,2,1,2)):
             lb=QLabel(self.gbIncome)
             lb.setAlignment(Qt.AlignCenter)
+            lb.setObjectName(f'lbTitleIncome{x+1}{y+1}')
             self.glIncome.addWidget(lb,x,y,w,h)
             self.lbTitleIncome.append(lb)
 
@@ -509,6 +510,7 @@ class TabStatM(QScrollArea):
         for x,y,w,h in ((0,0,1,2),(1,0,1,2),(1,2,1,2)):
             lb=QLabel(self.gbOutcome)
             lb.setAlignment(Qt.AlignCenter)
+            lb.setObjectName(f'lbTitleOutcome{x+1}{y+1}')
             self.glOutcome.addWidget(lb,x,y,w,h)
             self.lbTitleOutcome.append(lb)
         
@@ -558,6 +560,7 @@ class TabStatM(QScrollArea):
         for x,y,w,h in ((0,0,1,2),(1,0,1,2),(1,2,1,2)):
             lb=QLabel(self.gbMove)
             lb.setAlignment(Qt.AlignCenter)
+            lb.setObjectName(f'lbTitleMove{x+1}{y+1}')
             self.glMove.addWidget(lb,x,y,w,h)
             self.lbTitleMove.append(lb)
 

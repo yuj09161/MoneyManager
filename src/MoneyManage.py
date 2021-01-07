@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from PySide6.QtCore import *
-from PySide6.QtGui import *
+from PySide6.QtCore    import *
+from PySide6.QtGui     import *
 from PySide6.QtWidgets import *
 
 from UI import *
@@ -27,12 +27,15 @@ class MaxDataCountError(Exception):
 
 
 class ComboData(QStandardItemModel):
+    order_changed=Signal()
+    
     def __init__(self,parent=None):
         super().__init__(0,0,parent)
         
         self._data=[]
         
-        self.dataChanged.connect(self.change_order)
+        #self.dataChanged.connect(self.change_order)
+        self.dataChanged.connect(lambda: QTimer.singleShot(10,self.change_order))
     
     #this func is based from stackoverflow question 1263451
     def _bypass_ordchange(func):
@@ -48,6 +51,7 @@ class ComboData(QStandardItemModel):
         item.setFlags(item.flags()^Qt.ItemIsDropEnabled)
         return item
     
+    #converters
     def get_no_txt(self):
         return {n:t for n,t in sorted(self._data)}
     
@@ -66,15 +70,27 @@ class ComboData(QStandardItemModel):
     def get_index_txt(self):
         return {i:t for i,(n,t) in enumerate(self._data)}
     
+    #get one element
+    def get_no(self):
+        return tuple(n for n,t in sorted(self._data))
+    
+    def get_index(self):
+        return tuple(range(len(self._data)))
+    
     def get_txt(self):
         return tuple(t for n,t in self._data)
     
+    def get_txt_s(self):
+        return tuple(t for n,t in sorted(self._data))
+    
+    #get raw data (for save/export)
     def get_raw(self):
         return self._data
     
+    #setter func
     @_bypass_ordchange
     def add_data(self,txt):
-        self._data.append((max(x for x,_ in self._data),txt))
+        self._data.append((max(x for x,_ in self._data)+1,txt))
         self.appendRow(self.__item(txt))
     
     @_bypass_ordchange
@@ -94,24 +110,22 @@ class ComboData(QStandardItemModel):
         self.removeRow(index)
     
     def change_order(self):
-        print('ord')
         if not self.__changing:
             items = []
             for k in range(self.rowCount()):
                 items.append(self.item(k).text())
             self._data.sort(key=lambda x: items.index(x[1]))
-            self.__saved=False
-        print(items,self._data)
+            self.order_changed.emit()
 
 
 class ComboDataChk(ComboData):
     prefix='* '
     
     def get_chk_no(self):
-        return tuple(txt.startswith(self.prefix) for _,txt in sorted(self._data))
+        return list(txt.startswith(self.prefix) for _,txt in sorted(self._data))
     
     def get_chk_index(self):
-        return tuple(txt.startswith(self.prefix) for _,txt in self._data)
+        return list(txt.startswith(self.prefix) for _,txt in self._data)
     
     def get_no_chk(self):
         no_txt = self.get_no_txt()
@@ -147,7 +161,7 @@ class Data(QStandardItemModel):
         
         self.__parse_vdet  = np.vectorize(self.__parse_det)
         
-        self.__version    = 1
+        self.__version = 2
         
         self.type     = ComboData()
         self.sources  = ComboDataChk()
@@ -445,8 +459,8 @@ class Data(QStandardItemModel):
 
 class Stat_Data(QStandardItemModel):
     __header_text = (
-        '연월'   , '총 재산', '현금성',
-        '순 수익', '수입'   , '지출'  , '이동액'
+        '연월', '총 재산', '현금성',
+        '순 수익', '수입', '지출', '이동액'
     )
     __data_name = (
         'year',  'month',  'current',
@@ -480,8 +494,6 @@ class Stat_Data(QStandardItemModel):
         
         self.__cash_src = np.array(self.__sources )[is_cash].tolist()
         self.__ness_dst = np.array(self.__out_type)[is_ness].tolist()
-        
-        print(self.__cash_src,self.__ness_dst,np.array(self.__sources ),np.array(self.__out_type),is_cash,is_ness)
         
         self.__data_form = [
             ('year', 'uint16'),  ('month', 'uint8'), ('current'    , 'int32', (sources_cnt,)),
@@ -561,11 +573,11 @@ class Stat_Data(QStandardItemModel):
                         
                         type_sum_f=month_data[(month_data['type']==3)&(month_data['src']==s)]['val'].sum()
                         sum_=(
-                            d_c['income_src'][s]     +\
-                            d_c['move_in'][s]        -\
-                            d_c['outcome_src'][s]    -\
-                            d_c['move_out'][s]       +\
-                            last_current[s] +\
+                            d_c['income_src'][s]  +\
+                            d_c['move_in'][s]     -\
+                            d_c['outcome_src'][s] -\
+                            d_c['move_out'][s]    +\
+                            last_current[s]       +\
                             type_sum_f
                         )
                         d_c['current'][s]=sum_
@@ -940,11 +952,23 @@ class Login(QMainWindow,Ui_Login):
 
 
 class MainWin(QMainWindow,Ui_MainWin):
-    __type_text = (
+    __export_text = (
         'Excel 호환(*.tsv)',
         '텍스트 파일(*.txt)'
     )
-    __export_type = (';;'.join(__type_text))
+    __file_text = (
+        '데이터 파일(*.moneymanage)',
+        'Json 파일(*.json)',
+        '모든 파일(*.*)'
+    )
+    __header_text = (
+        '헤더 파일(*.header)',
+        'Json 파일(*.json)'
+    )
+    
+    __export_type = (';;'.join(__export_text))
+    __file_type   = (';;'.join(__file_text  ))
+    __header_type = (';;'.join(__header_text))
     
     trans_sig = Signal(int,dict,str)
     
@@ -954,7 +978,8 @@ class MainWin(QMainWindow,Ui_MainWin):
         
         
         #define instance variable
-        self.__saved=True
+        self.__saved = True
+        self.__last_file = ''
         self.__title_labels = tuple()
         self.__data_labels  = tuple()
         self.__sum_labels   = tuple()
@@ -1008,16 +1033,13 @@ class MainWin(QMainWindow,Ui_MainWin):
                 with open(CONFIG_FILE,'r') as file:
                     last_file,username,password=file.read().split('\n')
                     
-                    self.__login_win.username  = username
-                    self.__login_win.password  = password
+                    self.__login_win.username = username
+                    self.__login_win.password = password
                     
                     if os.path.isfile(last_file):
                         self.__load(last_file)
                     else:
-                        self.__last_file = ''
                         print(last_file)
-            else:
-                self.__last_file=''
         
         #connect signals
         self.acLoad  .triggered.connect(self.__load_as)
@@ -1031,6 +1053,10 @@ class MainWin(QMainWindow,Ui_MainWin):
         
         self.acOpenLicense.triggered.connect(self.__opensource_win.show)
         self.acLicense.triggered.connect(self.__license_win.show)
+        
+        self.__data.sources .order_changed.connect(self.__change_ord)
+        self.__data.in_type .order_changed.connect(self.__change_ord)
+        self.__data.out_type.order_changed.connect(self.__change_ord)
         
         self.tabCate.gbSrc.lvOrd.setModel(self.__data.sources)
         self.tabCate.gbIn .lvOrd.setModel(self.__data.in_type)
@@ -1238,20 +1264,16 @@ class MainWin(QMainWindow,Ui_MainWin):
                 src_ni = self.__data.sources.get_index_no()
                 in_ni  = self.__data.in_type.get_index_no()
                 out_ni = self.__data.out_type.get_index_no()
-                #print(src_ni,in_ni,out_ni)
                 
                 data_changer = (src_ni,src_ni,src_ni,in_ni,out_ni,src_ni,src_ni)
-                for (wids,_,_),type_,changer in zip(self.__data_labels,self.__stat.data_name[2:],data_changer):
+                for wids,type_,changer in zip(self.__data_labels,self.__stat.data_name[2:],data_changer):
                     for b,wid in enumerate(wids):
-                        #print(type_,data[type_],changer,b,changer[b],data[type_][changer[b]],sep=' / ')
                         wid.setText(str(data[type_][changer[b]]))
-                        #wid.setText(str(data[type_][b]))
                 
                 for wid,sum_ in zip(self.__sum_labels,sums):
                     wid.setText(sum_)
-                
         else: #if not month -> clear
-            for wids,_,_ in self.__data_labels:
+            for wids in self.__data_labels:
                 for wid in wids:
                     wid.setText('')
             for wid in self.__sum_labels:
@@ -1263,18 +1285,25 @@ class MainWin(QMainWindow,Ui_MainWin):
         except:
             pass
         
+        grids=(self.tabStatM.glCurrent, self.tabStatM.glIncome, self.tabStatM.glOutcome, self.tabStatM.glMove)
+        for grid in grids:
+            for k in reversed(range(grid.count())):
+                wid=grid.itemAt(k).widget()
+                if not wid.objectName():
+                    wid.deleteLater()
+        
         data=self.__data.get_data()
         
-        src_no = tuple(self.__data.sources .get_no_txt())
-        in_no  = tuple(self.__data.in_type .get_no_txt())
-        out_no = tuple(self.__data.out_type.get_no_txt())
+        src_no = self.__data.sources .get_no()
+        in_no  = self.__data.in_type .get_no()
+        out_no = self.__data.out_type.get_no()
         
-        src_txt = tuple(self.__data.sources .get_index_txt().values())
-        in_txt  = tuple(self.__data.in_type .get_index_txt().values())
-        out_txt = tuple(self.__data.out_type.get_index_txt().values())
+        src_txt = self.__data.sources .get_txt()
+        in_txt  = self.__data.in_type .get_txt()
+        out_txt = self.__data.out_type.get_txt()
         
-        is_cash = list(self.__data.sources .get_chk_no())
-        is_ness = list(self.__data.out_type.get_chk_no())
+        is_cash = self.__data.sources .get_chk_no()
+        is_ness = self.__data.out_type.get_chk_no()
         
         self.__stat.set_type(src_no,in_no,out_no,is_cash,is_ness)
         self.__stat.set_data(data)
@@ -1299,22 +1328,22 @@ class MainWin(QMainWindow,Ui_MainWin):
         self.tabStatM.lbDataOutcomeT  = []
         
         self.__title_labels=(
-            (self.tabStatM.lbTitleCurrent , self.tabStatM.gbCurrent, self.tabStatM.glCurrent),
-            (self.tabStatM.lbTitleIncomeS , self.tabStatM.gbIncome , self.tabStatM.glIncome ),
-            (self.tabStatM.lbTitleOutcomeS, self.tabStatM.gbOutcome, self.tabStatM.glOutcome),
-            (self.tabStatM.lbTitleIncomeT , self.tabStatM.gbIncome , self.tabStatM.glIncome ),
-            (self.tabStatM.lbTitleOutcomeT, self.tabStatM.gbOutcome, self.tabStatM.glOutcome),
-            (self.tabStatM.lbTitleMoveIn  , self.tabStatM.gbMove   , self.tabStatM.glMove   ),
-            (self.tabStatM.lbTitleMoveOut , self.tabStatM.gbMove   , self.tabStatM.glMove   )
+            self.tabStatM.lbTitleCurrent ,
+            self.tabStatM.lbTitleIncomeS ,
+            self.tabStatM.lbTitleOutcomeS,
+            self.tabStatM.lbTitleIncomeT ,
+            self.tabStatM.lbTitleOutcomeT,
+            self.tabStatM.lbTitleMoveIn  ,
+            self.tabStatM.lbTitleMoveOut 
         )
         self.__data_labels=(
-            (self.tabStatM.lbDataCurrent  , self.tabStatM.gbCurrent, self.tabStatM.glCurrent),
-            (self.tabStatM.lbDataIncomeS  , self.tabStatM.gbIncome , self.tabStatM.glIncome ),
-            (self.tabStatM.lbDataOutcomeS , self.tabStatM.gbOutcome, self.tabStatM.glOutcome),
-            (self.tabStatM.lbDataIncomeT  , self.tabStatM.gbIncome , self.tabStatM.glIncome ),
-            (self.tabStatM.lbDataOutcomeT , self.tabStatM.gbOutcome, self.tabStatM.glOutcome),
-            (self.tabStatM.lbDataMoveIn   , self.tabStatM.gbMove   , self.tabStatM.glMove   ),
-            (self.tabStatM.lbDataMoveOut  , self.tabStatM.gbMove   , self.tabStatM.glMove   )
+            self.tabStatM.lbDataCurrent ,
+            self.tabStatM.lbDataIncomeS ,
+            self.tabStatM.lbDataOutcomeS,
+            self.tabStatM.lbDataIncomeT ,
+            self.tabStatM.lbDataOutcomeT,
+            self.tabStatM.lbDataMoveIn  ,
+            self.tabStatM.lbDataMoveOut
         )
         self.__sum_labels=(
             self.tabStatM.lbSumIncome ,
@@ -1449,6 +1478,10 @@ class MainWin(QMainWindow,Ui_MainWin):
             self.tabData.lbDetail.setText('상세')
         
         self.tabData.cbDetail.setModel(self.__data.list_detail[index])
+    
+    def __change_ord(self):
+        self.__saved=False
+        self.__set_stat_type()
         
     def __load_as(self):
         if not self.__saved:
@@ -1461,7 +1494,7 @@ class MainWin(QMainWindow,Ui_MainWin):
             elif response==QMessageBox.Cancel:
                 return
         
-        path=QFileDialog.getOpenFileName(self,'불러오기')[0]
+        path=QFileDialog.getOpenFileName(self,'불러오기',filter=self.__file_type)[0]
         if path:
             self.__load(path)
     
@@ -1471,15 +1504,12 @@ class MainWin(QMainWindow,Ui_MainWin):
                 with open(file_path,'r',encoding='utf-8') as file:
                     data=json.load(file)
                 
+                if data['version']==1:
+                    for name in ('sources','in_type','out_type'):
+                        data[name]=list((int(n),t) for n,t in data[name].items())
+                    data['version']=2
+                
                 self.__data.load_data(data)
-                
-                for _,_,grid in self.__title_labels:
-                    for k in reversed(range(grid.count())): 
-                        grid.itemAt(k).widget().deleteLater()
-                
-                for _,_,grid in self.__data_labels:
-                    for k in reversed(range(grid.count())): 
-                        grid.itemAt(k).widget().deleteLater()
                 
                 self.__set_stat_type()
             except:
@@ -1500,7 +1530,7 @@ class MainWin(QMainWindow,Ui_MainWin):
                 break
     
     def __save_as(self):
-        path=QFileDialog.getSaveFileName(self,'저장')[0]
+        path=QFileDialog.getSaveFileName(self,'저장',filter=self.__file_type)[0]
         if path:
             self.__save(path)
     
@@ -1538,7 +1568,7 @@ class MainWin(QMainWindow,Ui_MainWin):
         
         if file_path:
             type_path,_=QFileDialog.getOpenFileName(self,'범례 파일 선택',filter='범례 파일(*.json)')
-            type_=self.__type_text.index(type_)
+            type_=self.__export_text.index(type_)
             
             if type_path:
                 while True:
@@ -1563,7 +1593,7 @@ class MainWin(QMainWindow,Ui_MainWin):
         
         if file_path:
             type_path,_=QFileDialog.getOpenFileName(self,'범례 파일 선택',filter='범례 파일(*.json)')
-            type_=self.__type_text.index(type_)
+            type_=self.__export_text.index(type_)
             
             if type_path:
                 while True:
