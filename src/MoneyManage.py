@@ -1205,6 +1205,24 @@ class MainWin(QMainWindow, Ui_MainWin):
     def __add_data(self):
         try:
             date = self.tabData.lnDate.text()
+            diff = (datetime.date.today() - datetime.date.fromisoformat(date)).days
+            if diff > 30:
+                response = QMessageBox.warning(
+                    self, '날짜 주의',
+                    '현재보다 30일 이상 이전 날짜\n정확한 날짜?',
+                    QMessageBox.Ok | QMessageBox.Cancel
+                )
+                if response == QMessageBox.Cancel:
+                    return
+            elif diff < 0:
+                response = QMessageBox.warning(
+                    self, '날짜 주의',
+                    '미래의 날짜\n정확한 날짜?',
+                    QMessageBox.Ok | QMessageBox.Cancel
+                )
+                if response == QMessageBox.Cancel:
+                    return
+
             type_ = self.tabData.cbType.currentText()
             src = self.tabData.cbSrc.currentText()
             detail = self.tabData.cbDetail.currentText()
@@ -1503,43 +1521,44 @@ class MainWin(QMainWindow, Ui_MainWin):
 
         self.tabStatM.cbMonth.currentTextChanged.connect(self.__set_month)
 
+    # this func is based from stackoverflow question 1263451
+    def _set_save_and_stattype(func):
+        def inner(self, *args, **kwargs):
+            res = func(self, *args, **kwargs)
+            self.__saved = False
+            self.__set_stat_type()
+            return res
+        return inner
+
+    @_set_save_and_stattype
+    def __change_ord(self):
+        pass
+
+    @_set_save_and_stattype
     def __add_source(self):
         checked = bool(self.tabCate.gbSrc.chk.checkState())
         self.__data.sources.add_data(checked, self.tabCate.gbSrc.lnAdd.text())
 
-        self.__saved = False
-        self.__set_stat_type()
-
+    @_set_save_and_stattype
     def __del_source(self):
         self.__data.sources.del_at(self.tabCate.gbSrc.cbDel.currentIndex())
 
-        self.__saved = False
-        self.__set_stat_type()
-
+    @_set_save_and_stattype
     def __add_in(self):
         self.__data.in_type.add_data(self.tabCate.gbIn.lnAdd.text())
 
-        self.__saved = False
-        self.__set_stat_type()
-
+    @_set_save_and_stattype
     def __del_in(self):
         self.__data.in_type.del_at(self.tabCate.gbIn.cbDel.currentIndex())
 
-        self.__saved = False
-        self.__set_stat_type()
-
+    @_set_save_and_stattype
     def __add_out(self):
         checked = bool(self.tabCate.gbOut.chk.checkState())
         self.__data.out_type.add_data(checked, self.tabCate.gbOut.lnAdd.text())
 
-        self.__saved = False
-        self.__set_stat_type()
-
+    @_set_save_and_stattype
     def __del_out(self):
         self.__data.out_type.del_at(self.tabCate.gbOut.cbDel.currentIndex())
-
-        self.__saved = False
-        self.__set_stat_type()
 
     def __set_type(self, index):
         if index == 2:
@@ -1548,10 +1567,6 @@ class MainWin(QMainWindow, Ui_MainWin):
             self.tabData.lbDetail.setText('상세')
 
         self.tabData.cbDetail.setModel(self.__data.list_detail[index])
-
-    def __change_ord(self):
-        self.__saved = False
-        self.__set_stat_type()
 
     def __load_as(self):
         if not self.__saved:
