@@ -240,18 +240,18 @@ class MainWin(QMainWindow, Ui_MainWin):
         self.__err_win = Txt(self, 'Error', '')
 
         # load data
+        if os.path.isfile(CONFIG_FILE):
+            with open(CONFIG_FILE, 'r') as file:
+                last_file, username, password = file.read().split('\n')
+
+                self.__login_win.username = username
+                self.__login_win.password = password
+
         if file_name:
             self.__load(file_name)
         else:
-            if os.path.isfile(CONFIG_FILE):
-                with open(CONFIG_FILE, 'r') as file:
-                    last_file, username, password = file.read().split('\n')
-
-                    self.__login_win.username = username
-                    self.__login_win.password = password
-
-                    if os.path.isfile(last_file):
-                        self.__load(last_file)
+            if os.path.isfile(last_file):
+                self.__load(last_file)
 
         # connect signals
         self.acLoad.triggered.connect(self.__load_as)
@@ -751,8 +751,8 @@ class MainWin(QMainWindow, Ui_MainWin):
 
                 if data['version'] == 1:
                     for name in ('sources', 'in_type', 'out_type'):
-                        data[name] = list((int(n), t)
-                                          for n, t in data[name].items())
+                        data[name] =\
+                            [(int(n), t) for n, t in data[name].items()]
                     data['version'] = 2
 
                 self.__data.load_data(data)

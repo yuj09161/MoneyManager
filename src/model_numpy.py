@@ -11,6 +11,10 @@ STD_DAY = 730120
 MAX_DATA_CNT = 10000
 
 
+def arr_to_qitem(arr):
+    return [QStandardItem(str(x)) for x in arr]
+
+
 class NotInitalizedError(Exception):
     pass
 
@@ -44,12 +48,12 @@ class ComboData(QStandardItemModel):
 
     def __item(self, obj):
         item = QStandardItem(obj)
-        item.setFlags(item.flags() ^ Qt.ItemIsDropEnabled)
+        item.setFlags(item.flags() & ~Qt.ItemIsDropEnabled)
         return item
 
     # converters
     def get_no_txt(self):
-        return {n: t for n, t in sorted(self._data)}
+        return dict(sorted(self._data))
 
     def get_no_index(self):
         return {n: i for i, (n, t) in sorted(
@@ -69,16 +73,16 @@ class ComboData(QStandardItemModel):
 
     # get one element
     def get_no(self):
-        return tuple(n for n, t in sorted(self._data))
+        return [n for n, t in sorted(self._data)]
 
     def get_index(self):
         return tuple(range(len(self._data)))
 
     def get_txt(self):
-        return tuple(t for n, t in self._data)
+        return [t for n, t in self._data]
 
     def get_txt_s(self):
-        return tuple(t for n, t in sorted(self._data))
+        return [t for n, t in sorted(self._data)]
 
     # get raw data (for save/export)
     def get_raw(self):
@@ -124,15 +128,19 @@ class ComboDataChk(ComboData):
     prefix = '* '
 
     def get_chk_no(self):
-        return list(
+        return [
             txt.startswith(self.prefix) for _, txt in sorted(self._data)
-        )
+        ]
 
     def get_chk_index(self):
-        return list(txt.startswith(self.prefix) for _, txt in self._data)
+        return [
+            txt.startswith(self.prefix) for _, txt in self._data
+        ]
 
     def get_no_chk(self):
-        return {n: t.startswith(self.prefix) for n, t in sorted(self._data)}
+        return {
+            n: t.startswith(self.prefix) for n, t in sorted(self._data)
+        }
 
     def get_index_chk(self):
         return {
@@ -148,14 +156,10 @@ class Data(QStandardItemModel):
     __header_text = ('일시', '구분', '원천', '상세/이동처', '금액', '설명')
     __type_text = ('수입', '지출', '이동', '초기')
     __data_form = [
-        ('date', 'uint16'), ('type', 'int8'), ('src', 'uint8'),
+        ('date', 'uint16'), ('type', 'uint8'), ('src', 'uint8'),
         ('det', 'uint8'), ('val', 'uint32'), ('desc', '<U64')
     ]
     __data_name = ('date', 'type', 'src', 'det', 'val', 'desc')
-
-    __qitem_vec = np.vectorize(lambda x: QStandardItem(str(x)))
-    __parse_vdate = np.vectorize(
-        lambda x: datetime.date.fromordinal(x + STD_DAY).isoformat())
 
     __empty_arr = np.array((0, 0, 0, 0, 0, ''), __data_form)
 
@@ -164,8 +168,6 @@ class Data(QStandardItemModel):
     def __init__(self, parent):
         super().__init__(0, 0, parent)
         self.setHorizontalHeaderLabels(self.__header_text)
-
-        self.__parse_vdet = np.vectorize(self.__parse_det)
 
         self.__version = 2
 
@@ -205,32 +207,55 @@ class Data(QStandardItemModel):
             self.__data = np.asarray(raw_data, self.__data_form)
 
         # parse data & set data
-        self.__tmp_src_txt = self.sources.get_no_txt()
-        self.__tmp_in_txt = self.in_type.get_no_txt()
-        self.__tmp_out_txt = self.out_type.get_no_txt()
+        src_txt = self.sources.get_txt_s()
+        in_txt = self.in_type.get_txt_s()
+        out_txt = self.out_type.get_txt_s()
 
         # date
-        dates = self.__data['date']
-        dates = self.__parse_vdate(dates)
-        self.appendColumn(self.__qitem_vec(dates).tolist())
+        dates = [
+            datetime.date.fromordinal(x).isoformat()
+            for x in self.__data['date'] + STD_DAY
+        ]
+        self.appendColumn(arr_to_qitem(dates))
 
-        # type&det
-        types, dets = self.__parse_vdet(
-            self.__data['type'], self.__data['det']
-        )
-        self.appendColumn(self.__qitem_vec(types).tolist())
+        # type, source, detail
+        shape = self.__data.shape
+        types = np.zeros(shape, '<U12')
+        dets = np.zeros(shape, '<U12')
+        srcs = np.zeros(shape, '<U12')
 
-        # src
-        srcs = self.__data['src'].astype('<U12')
-        for no, txt in self.__tmp_src_txt.items():
-            srcs[srcs == str(no)] = txt
-        self.appendColumn(self.__qitem_vec(srcs).tolist())
+        # parse type
+        for type_num in range(4):
+            types[self.__data['type'] == type_num] = self.__type_text[type_num]
 
-        # det&val&desc (append)
-        self.appendColumn(self.__qitem_vec(dets).tolist())
-        self.appendColumn(self.__qitem_vec(
-            self.__data['val'].astype('<U10')).tolist())
-        self.appendColumn(self.__qitem_vec(self.__data['desc']).tolist())
+        # parse detail
+        print(src_txt)
+        for num, txt in enumerate(in_txt):
+            dets[
+                (self.__data['type'] == 0) & (self.__data['det'] == num)
+            ] = txt
+        for num, txt in enumerate(out_txt):
+            dets[
+                (self.__data['type'] == 1) & (self.__data['det'] == num)
+            ] = txt
+        for num, txt in enumerate(src_txt):
+            srcs[self.__data['type'] == num] = txt
+            dets[
+                (self.__data['type'] == 2) & (self.__data['det'] == num)
+            ] = txt
+        dets[self.__data['type'] == 3] = '-'
+
+        print(dets)
+        self.appendColumn(arr_to_qitem(types))
+        self.appendColumn(arr_to_qitem(srcs))
+        self.appendColumn(arr_to_qitem(dets))
+        # end type, source, detail
+
+        # value, description
+        self.appendColumn(arr_to_qitem(
+            self.__data['val'].astype('<U10').tolist()
+        ))
+        self.appendColumn(arr_to_qitem(self.__data['desc']))
         # end parser
 
         self.setHorizontalHeaderLabels(self.__header_text)
@@ -294,6 +319,7 @@ class Data(QStandardItemModel):
             self, file_type, file_path, type_path='', *, encoding='utf-8'
             ):
         raise NotImplementedError('packer not implemented')
+        # pylint: disable=unreachable
         data = self.__packer()
 
         if file_type == 0:  # tsv
@@ -315,63 +341,47 @@ class Data(QStandardItemModel):
                 json.dump(types, file)
 
     # parser
-    def __parse_det(self, type_, det):
-        parsed_type = self.__type_text[type_]
-
-        if type_ == 0:
-            parsed_det = self.__tmp_in_txt[det]
-        elif type_ == 1:
-            parsed_det = self.__tmp_out_txt[det]
-        elif type_ == 2:
-            parsed_det = self.__tmp_src_txt[det]
-        elif type_ == 3:
-            parsed_det = '-'
-        else:
-            raise ValueError
-
-        return parsed_type, parsed_det
 
     def __tsv_parser(self, raw_data, sources, in_type, out_type):
-        def parse13(row1, row3):
-            res1 = self.__type_text.index(row1)
+        '''
+        argument information
 
-            if res1 == 0:
-                res3 = in_type[row3]
-            elif res1 == 1:
-                res3 = out_type[row3]
-            elif res1 == 2:
-                res3 = sources[row3]
-            elif res1 == 4:
-                res3 = 0
-            else:
-                raise ValueError
-
-            return res1, res3
-
-        def parse0(x):
-            return datetime.date.fromisoformat(x).toordinal() - STD_DAY
-
-        def parse2(x):
-            return sources[x] if x else 0
-
-        def parse4(x):
-            if x:
-                return int(x)
-
-        vp0 = np.vectorize(parse0)
-        vp2 = np.vectorize(parse2)
-        vp13 = np.vectorize(parse13)
-        vp4 = np.vectorize(parse4)
+        sources, in_type, out_type: txt -> no
+        rows: date, type, source, detail, value, description
+        '''
 
         raw_data = list(map(lambda x: x.replace(
             '\n', '').split('\t'), raw_data))
         raw_data = np.array(raw_data)
 
-        row0 = vp0(raw_data[:-1, 0])
-        row2 = vp2(raw_data[:-1, 2])
-        row1, row3 = vp13(raw_data[:-1, 1], raw_data[:-1, 3])
-        row4 = vp4(raw_data[:-1, 5])
-        # row4=np.array(raw_data[:-1,5],dtype=np.uint32)
+        # parse row 0, 2, 4
+        row0 = [(datetime.date.fromisoformat(x).toordinal() - STD_DAY)
+                for x in raw_data[:-1, 0]]
+        row2 = [sources[x] for x in raw_data[:-1, 2]]
+        row4 = [int(x) for x in raw_data[:-1, 5]]
+
+        # parse row 1, 3
+        row1 = np.zeros(raw_data[:-1, 1].shape, 'uint8')
+        row3 = np.zeros(raw_data[:-1, 3].shape, 'uint8')
+
+        for no, txt in enumerate(self.__type_text):
+            row1[raw_data[:-1, 1] == txt] = no
+
+        for txt, no in sources:
+            row3[
+                (raw_data[:-1, 1] == self.__type_text[0])
+                & (raw_data[:-1, 3] == txt)
+            ] = no
+        for txt, no in in_type:
+            row3[
+                (raw_data[:-1, 1] == self.__type_text[1])
+                & (raw_data[:-1, 3] == txt)
+            ] = no
+        for txt, no in out_type:
+            row3[
+                (raw_data[:-1, 1] == self.__type_text[2])
+                & (raw_data[:-1, 3] == txt)
+            ] = no
 
         data = np.column_stack(
             (row0, row1, row2, row3, row4, raw_data[:-1, 4])
@@ -414,12 +424,12 @@ class Data(QStandardItemModel):
             else:
                 real_date = self.__data[:self.row_count]['date']
                 if date >= real_date[-1]:  # append(=insert at end)
-                    self.appendRow(self.__qitem_vec(args).tolist())
+                    self.appendRow(arr_to_qitem(args))
                     self.__data[self.row_count] = parsed_data
                 else:
                     index = np.searchsorted(real_date, date, 'right')
                     tmp_list = np.array(parsed_data, self.__data_form)
-                    self.insertRow(index, self.__qitem_vec(args).tolist())
+                    self.insertRow(index, arr_to_qitem(args))
                     if not index:
                         self.__data = np.append(
                             tmp_list, self.__data[:MAX_DATA_CNT - 1]
@@ -477,7 +487,7 @@ class Data(QStandardItemModel):
             raise ValueError('Tried to set data with wrong arguments')
         else:
             self.__data[row_no] = parsed_data
-            for k, item in enumerate(self.__qitem_vec(args).tolist()):
+            for k, item in enumerate(arr_to_qitem(args)):
                 self.setItem(row_no, k, item)
             return parsed_data
 
@@ -487,6 +497,7 @@ class Data(QStandardItemModel):
 
 
 class Stat_Data(QStandardItemModel):
+    # pylint: disable=attribute-defined-outside-init
     __header_text = (
         '연월', '총 재산', '현금성',
         '순 수익', '수입', '지출', '이동액'
@@ -500,8 +511,6 @@ class Stat_Data(QStandardItemModel):
     __type_col = ('income_src', 'outcome_src')
     __type_col2 = ('income_typ', 'outcome_typ')
     column_count = len(__header_text)
-
-    __qitem_vec = np.vectorize(lambda x: QStandardItem(str(x)))
 
     def __init__(self, parent=None):
         super().__init__(0, 0, parent)
@@ -663,12 +672,13 @@ class Stat_Data(QStandardItemModel):
                         raise ValueError
                     else:
                         if not any((c3, c4, c7)):
-                            self.appendRow(self.__qitem_vec(
-                                ('최초', c2, cash, 0, 0, 0, 0)).tolist())
+                            self.appendRow(arr_to_qitem(
+                                ('최초', c2, cash, 0, 0, 0, 0)
+                            ))
                         else:
-                            self.appendRow(self.__qitem_vec(
+                            self.appendRow(arr_to_qitem(
                                 (f'{y}-{m}', c2, cash, c3 - c4, c3, c4, c7)
-                            ).tolist()
+                            )
                             )
                         last_current = d_c['current']
                         self.__real_month.append(f'{y}-{m}')
@@ -784,9 +794,9 @@ class Stat_Data(QStandardItemModel):
             if c3 != c5 or c4 != c6 or c7 != c8:
                 raise ValueError
             else:
-                items = self.__qitem_vec(
+                items = arr_to_qitem(
                     (f'{m_c[0]}-{m_c[1]}', c2, cash, c3 - c4, c3, c4, c7)
-                ).tolist()
+                )
                 if insert:
                     self.insertRow(index2, items)
                 else:
@@ -890,9 +900,9 @@ class Stat_Data(QStandardItemModel):
             if c3 != c5 or c4 != c6 or c7 != c8:
                 raise ValueError
             else:
-                items = self.__qitem_vec(
+                items = arr_to_qitem(
                     (f'{m_c[0]}-{m_c[1]}', c2, cash, c3 - c4, c3, c4, c7)
-                ).tolist()
+                )
                 for k, item in enumerate(items):
                     self.setItem(index2, k, item)
 
