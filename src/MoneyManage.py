@@ -21,6 +21,9 @@ CONFIG_DIR = os.environ['localappdata'] + '/hys.moneymanage'
 CONFIG_FILE = os.environ['localappdata'] + '/hys.moneymanage/config'
 
 
+DEFAULT_ENCODING = 'utf-8'
+
+
 class Txt(QMainWindow, Ui_Txt):
     def __init__(self, parent, title, info_text):
         super().__init__(parent)
@@ -812,7 +815,7 @@ class MainWin(QMainWindow, Ui_MainWin):
                 self.statusbar.showMessage('저장 성공', timeout=2000)
                 break
 
-    def __import_as(self):
+    def __import_as(self, *, encoding=DEFAULT_ENCODING):
         file_path, type_ = QFileDialog.getOpenFileName(
             self, '가져오기', filter=self.__export_type
         )
@@ -826,7 +829,12 @@ class MainWin(QMainWindow, Ui_MainWin):
             if type_path:
                 while True:
                     try:
-                        self.__data.import_data(type_, file_path, type_path)
+                        with open(file_path, 'r', encoding=encoding) as file:
+                            raw_data = file.readlines()
+                        with open(type_path, 'r', encoding=encoding) as file:
+                            types = json.load(file)
+
+                        self.__data.import_data(type_, raw_data, types)
                     except Exception:  # pylint: disable=broad-except
                         msgbox = QMessageBox(
                             QMessageBox.Warning, '재시도',
@@ -841,32 +849,39 @@ class MainWin(QMainWindow, Ui_MainWin):
                     else:
                         break
 
-    def __export_as(self):
-        file_path, type_ = QFileDialog.getSaveFileName(
-            self, '내보내기', filter=self.__export_type)
+    def __export_as(self, *, encoding=DEFAULT_ENCODING):
+        file_path, raw_type = QFileDialog.getSaveFileName(
+            self, '내보내기', filter=self.__export_type
+        )
 
         if file_path:
             type_path, _ = QFileDialog.getOpenFileName(
                 self, '범례 파일 선택', filter='범례 파일(*.json)')
-            type_ = self.__export_text.index(type_)
+            type_no = self.__export_text.index(raw_type)
 
-            if type_path:
-                while True:
-                    try:
-                        self.__data.export_data(type_, file_path, type_path)
-                    except Exception:  # pylint: disable=broad-except
-                        msgbox = QMessageBox(
-                            QMessageBox.Warning, '재시도',
-                            f"{'내보내는 중 오류 발생: 재시도?':70}",
-                            QMessageBox.Retry | QMessageBox.Abort,
-                            self
-                        )
-                        msgbox.setDetailedText(traceback.format_exc())
-                        response = msgbox.exec_()
-                        if response == QMessageBox.Abort:
-                            break
-                    else:
+            while True:
+                try:
+                    data, types = self.__data.export_data(type_no)
+
+                    with open(file_path, 'w', encoding=encoding) as file:
+                        file.write(data)
+                    if type_path:
+                        with open(type_path, 'w',
+                                  encoding=encoding) as file:
+                            json.dump(types, file)
+                except Exception:  # pylint: disable=broad-except
+                    msgbox = QMessageBox(
+                        QMessageBox.Warning, '재시도',
+                        f"{'내보내는 중 오류 발생: 재시도?':70}",
+                        QMessageBox.Retry | QMessageBox.Abort,
+                        self
+                    )
+                    msgbox.setDetailedText(traceback.format_exc())
+                    response = msgbox.exec_()
+                    if response == QMessageBox.Abort:
                         break
+                else:
+                    break
 
     def __save_config(self):
         if not os.path.isdir(CONFIG_DIR):

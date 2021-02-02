@@ -1,7 +1,6 @@
 from PySide6.QtCore import Signal, QTimer, Qt
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 
-import json
 import datetime
 
 import numpy as np
@@ -229,7 +228,6 @@ class Data(QStandardItemModel):
             types[self.__data['type'] == type_num] = self.__type_text[type_num]
 
         # parse detail
-        print(src_txt)
         for num, txt in enumerate(in_txt):
             dets[
                 (self.__data['type'] == 0) & (self.__data['det'] == num)
@@ -245,7 +243,6 @@ class Data(QStandardItemModel):
             ] = txt
         dets[self.__data['type'] == 3] = '-'
 
-        print(dets)
         self.appendColumn(arr_to_qitem(types))
         self.appendColumn(arr_to_qitem(srcs))
         self.appendColumn(arr_to_qitem(dets))
@@ -279,18 +276,9 @@ class Data(QStandardItemModel):
 
         return data
 
-    def import_data(
-            self, file_type, file_path, type_path, *, encoding='utf-8'
-            ):
+    def import_data(self, file_type, raw_data, types):
         data = {}
-        with open(file_path, 'r', encoding=encoding) as file:
-            raw_data = file.readlines()
-
         data['version'] = self.__version
-
-        with open(type_path, 'r', encoding=encoding) as file:
-            types = json.load(file)
-
         raw_sources = data['sources'] = types['sources']
         raw_in_type = data['in_type'] = types['in_type']
         raw_out_type = data['out_type'] = types['out_type']
@@ -315,11 +303,9 @@ class Data(QStandardItemModel):
         raise NotImplementedError(f'unpacker not implemented\nres:\n{data}')
         # self.__unpacker(data)
 
-    def export_data(
-            self, file_type, file_path, type_path='', *, encoding='utf-8'
-            ):
-        raise NotImplementedError('packer not implemented')
+    def export_data(self, file_type):
         # pylint: disable=unreachable
+        raise NotImplementedError('packer not implemented')
         data = self.__packer()
 
         if file_type == 0:  # tsv
@@ -329,19 +315,15 @@ class Data(QStandardItemModel):
         else:
             raise ValueError(f'Wrong file_type no: {file_type}')
 
-        with open(file_path, 'w', encoding=encoding) as file:
-            file.write(data)
+        types = {
+            'sources': self.sources.get_raw(),
+            'in_type': self.in_type.get_raw(),
+            'out_type': self.out_type.get_raw(),
+        }
 
-        if type_path:
-            types = {}
-            types['sources'] = self.sources.get_raw()
-            types['in_type'] = self.in_type.get_raw()
-            types['out_type'] = self.out_type.get_raw()
-            with open(type_path, 'w', encoding=encoding) as file:
-                json.dump(types, file)
+        return data, types
 
     # parser
-
     def __tsv_parser(self, raw_data, sources, in_type, out_type):
         '''
         argument information
@@ -538,8 +520,8 @@ class Stat_Data(QStandardItemModel):
         else:
             out_cnt = 0
 
-        self.__cash_src = np.array(self.__sources)[is_cash].tolist()
-        self.__ness_dst = np.array(self.__out_type)[is_ness].tolist()
+        self.__cash_src = np.array(is_cash).tolist()
+        self.__ness_dst = np.array(is_ness).tolist()
 
         self.__data_form = [
             ('year', 'uint16'),
@@ -603,8 +585,6 @@ class Stat_Data(QStandardItemModel):
 
                 if month_data.size:
                     d_c = self.__data[k]
-                    cash = 0
-                    ness = 0
 
                     for t in range(2):
                         for s in self.__sources:
@@ -614,6 +594,7 @@ class Stat_Data(QStandardItemModel):
                             ]['val'].sum()
                             d_c[self.__type_col[t]][s] = type_sum
 
+                    # loop: in_type
                     for d in self.__in_type:
                         type_sum = month_data[
                             ((month_data['type'] == 0)
@@ -621,6 +602,7 @@ class Stat_Data(QStandardItemModel):
                         ]['val'].sum()
                         d_c['income_typ'][d] = type_sum
 
+                    # loop: out_type
                     for d in self.__out_type:
                         type_sum = month_data[
                             ((month_data['type'] == 1)
@@ -628,9 +610,7 @@ class Stat_Data(QStandardItemModel):
                         ]['val'].sum()
                         d_c['outcome_typ'][d] = type_sum
 
-                        if d in self.__ness_dst:
-                            ness += d_c['outcome_typ'][d]
-
+                    # loop: sources
                     for s in self.__sources:
                         type_sum_o = month_data[
                             ((month_data['type'] == 2)
@@ -648,7 +628,7 @@ class Stat_Data(QStandardItemModel):
                             ((month_data['type'] == 3)
                                 & (month_data['src'] == s))
                         ]['val'].sum()
-                        sum_ = (
+                        d_c['current'][s] = (
                             d_c['income_src'][s]
                             + d_c['move_in'][s]
                             - d_c['outcome_src'][s]
@@ -656,17 +636,18 @@ class Stat_Data(QStandardItemModel):
                             + last_current[s]
                             + type_sum_f
                         )
-                        d_c['current'][s] = sum_
-                        if s in self.__cash_src:
-                            cash += sum_
+                    # end sources loop
 
-                        c2 = d_c['current'].sum()
-                        c3 = d_c['income_src'].sum()
-                        c4 = d_c['outcome_src'].sum()
-                        c5 = d_c['income_typ'].sum()
-                        c6 = d_c['outcome_typ'].sum()
-                        c7 = d_c['move_in'].sum()
-                        c8 = d_c['move_out'].sum()
+                    # calculate summary
+                    cash = d_c['current'][self.__cash_src].sum()
+
+                    c2 = d_c['current'].sum()
+                    c3 = d_c['income_src'].sum()
+                    c4 = d_c['outcome_src'].sum()
+                    c5 = d_c['income_typ'].sum()
+                    c6 = d_c['outcome_typ'].sum()
+                    c7 = d_c['move_in'].sum()
+                    c8 = d_c['move_out'].sum()
 
                     if c3 != c5 or c4 != c6 or c7 != c8:
                         raise ValueError
@@ -699,15 +680,8 @@ class Stat_Data(QStandardItemModel):
             index = self.__month_list.index(month)
             d_c = self.__data[index].copy()
 
-            cash = 0
-            for s in self.__sources:
-                if s in self.__cash_src:
-                    cash += d_c['current'][s]
-
-            ness = 0
-            for d in self.__out_type:
-                if d in self.__ness_dst:
-                    ness += d_c['outcome_typ'][d]
+            cash = d_c['current'][self.__cash_src].sum()
+            ness = d_c['outcome_typ'][self.__ness_dst].sum()
 
             c2 = d_c['current'].sum()
             c3 = d_c['income_src'].sum()
@@ -775,13 +749,7 @@ class Stat_Data(QStandardItemModel):
                     d_c['current'][src] -= val
 
             # recalculate summary
-            cash = 0
-            for s in self.__cash_src:
-                cash += d_c['current'][s]
-
-            ness = 0
-            for d in self.__ness_dst:
-                ness += d_c['outcome_typ'][d]
+            cash = d_c['current'][self.__cash_src].sum()
 
             c2 = d_c['current'].sum()
             c3 = d_c['income_src'].sum()
@@ -805,18 +773,18 @@ class Stat_Data(QStandardItemModel):
         else:
             '''
             if d<self.__first_date:
-                tmp_m=[]
+                tmp_m = []
                 for m in range(m_c[1],13):
-                    tmp_m.append((m_c[0],m))
+                    tmp_m.append((m_c[0], m))
                 if m_c[0]<self.__month_list[0][0]:
-                    for y in range(m_c[0]+1,self.__month_list[0][0]+1):
-                        for m in range(1,13):
-                            tmp_m.append((y,m))
+                    for y in range(m_c[0] + 1,self.__month_list[0][0] + 1):
+                        for m in range(1, 13):
+                            tmp_m.append((y, m))
 
-                self.__real_month = [f'{m_c[0]}-{m_c[1]}']+self.__real_month
+                self.__real_month = [f'{m_c[0]}-{m_c[1]}'] + self.__real_month
                 self.__month_list = tmp_m + self.__month_list
 
-                print(self.__month_list,self.__real_month)
+                print(self.__month_list, self.__real_month)
             el
             '''
             if d > self.__last_date:
@@ -831,8 +799,10 @@ class Stat_Data(QStandardItemModel):
                 self.__real_month.append(f'{m_c[0]}-{m_c[1]}')
                 self.__month_list = self.__month_list + tmp_m
             else:
+                # raise ValueError
                 raise NotImplementedError(
-                    'This case(d<self.__first_date) is not implemented')
+                    'This case(d<self.__first_date) is not implemented'
+                )
 
             l = len(tmp_m)  # noqa: E741
             last_month = self.__data[-1]
@@ -881,13 +851,7 @@ class Stat_Data(QStandardItemModel):
                     d_c['current'][src] += val
 
             # recalculate summary
-            cash = 0
-            for s in self.__cash_src:
-                cash += d_c['current'][s]
-
-            ness = 0
-            for d in self.__ness_dst:
-                ness += d_c['outcome_typ'][d]
+            cash = d_c['current'][self.__cash_src].sum()
 
             c2 = d_c['current'].sum()
             c3 = d_c['income_src'].sum()
