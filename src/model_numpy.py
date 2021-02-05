@@ -781,10 +781,9 @@ class Stat_Data(QStandardItemModel):
                         for m in range(1, 13):
                             tmp_m.append((y, m))
 
-                self.__real_month = [f'{m_c[0]}-{m_c[1]}'] + self.__real_month
                 self.__month_list = tmp_m + self.__month_list
 
-                print(self.__month_list, self.__real_month)
+                print(self.__month_list)
             el
             '''
             if d > self.__last_date:
@@ -796,7 +795,6 @@ class Stat_Data(QStandardItemModel):
                 for m in range(1, m_c[1] + 1):
                     tmp_m.append((m_c[0], m))
 
-                self.__real_month.append(f'{m_c[0]}-{m_c[1]}')
                 self.__month_list = self.__month_list + tmp_m
             else:
                 # raise ValueError

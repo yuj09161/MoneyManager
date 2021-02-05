@@ -256,6 +256,20 @@ class MainWin(QMainWindow, Ui_MainWin):
             if os.path.isfile(last_file):
                 self.__load(last_file)
 
+        # set model
+        self.tabCate.gbSrc.lvOrd.setModel(self.__data.sources)
+        self.tabCate.gbIn.lvOrd.setModel(self.__data.in_type)
+        self.tabCate.gbOut.lvOrd.setModel(self.__data.out_type)
+
+        self.tabData.treeData.setModel(self.__data)
+        self.tabData.cbType.setModel(self.__data.type)
+        self.tabData.cbSrc.setModel(self.__data.sources)
+        self.tabData.cbDetail.setModel(self.__data.in_type)
+
+        self.tabStatS.treeStatS.setModel(self.__stat)
+
+        self.tabStatM.cbMonth.setModel(self.__stat.months)
+
         # connect signals
         self.acLoad.triggered.connect(self.__load_as)
         self.acSave.triggered.connect(self.__save)
@@ -273,31 +287,18 @@ class MainWin(QMainWindow, Ui_MainWin):
         self.__data.in_type.order_changed.connect(self.__change_ord)
         self.__data.out_type.order_changed.connect(self.__change_ord)
 
-        self.tabCate.gbSrc.lvOrd.setModel(self.__data.sources)
-        self.tabCate.gbIn.lvOrd.setModel(self.__data.in_type)
-        self.tabCate.gbOut.lvOrd.setModel(self.__data.out_type)
-
         self.tabCate.gbSrc.btnAdd.clicked.connect(self.__add_source)
         self.tabCate.gbIn.btnAdd.clicked.connect(self.__add_in)
         self.tabCate.gbOut.btnAdd.clicked.connect(self.__add_out)
 
-        self.tabData.treeData.setModel(self.__data)
         self.tabData.treeData.selectionModel()\
             .selectionChanged.connect(self.__start_edit)
-
-        self.tabData.cbType.setModel(self.__data.type)
-        self.tabData.cbSrc.setModel(self.__data.sources)
-        self.tabData.cbDetail.setModel(self.__data.in_type)
 
         self.tabData.cbType.currentIndexChanged.connect(self.__set_type)
 
         self.tabData.treeData.doubleClicked.connect(self.__del_data)
         self.tabData.btnAddData.clicked.connect(self.__add_data)
         self.tabData.btnCancel.clicked.connect(self.__end_edit)
-
-        self.tabStatS.treeStatS.setModel(self.__stat)
-
-        self.tabStatM.cbMonth.setModel(self.__stat.months)
         self.tabStatM.cbMonth.currentTextChanged.connect(self.__set_month)
 
         self.__resize()
