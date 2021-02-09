@@ -410,7 +410,7 @@ class TabStatM(QScrollArea):
     def setupUi(self):
         if not self.objectName():
             self.setObjectName(u"self")
-        # self.setFixedSize(776, 510)
+        self.setWidgetResizable(True)
 
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
@@ -584,8 +584,6 @@ class TabStatM(QScrollArea):
         self.glCent.addWidget(self.gbStat, 3, 0, 1, 2)
 
 
-        # print(self.widCent.sizeHint())
-        self.widCent.setMinimumSize(QSize(756, 750))
         self.setWidget(self.widCent)
 
         self.retranslateUi()
