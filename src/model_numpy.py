@@ -124,31 +124,32 @@ class ComboData(QStandardItemModel):
 
 
 class ComboDataChk(ComboData):
-    prefix = '* '
+    __prefix = '* '
 
     def get_chk_no(self):
         return [
-            txt.startswith(self.prefix) for _, txt in sorted(self._data)
+            txt.startswith(self.__prefix) for _, txt in sorted(self._data)
         ]
 
     def get_chk_index(self):
         return [
-            txt.startswith(self.prefix) for _, txt in self._data
+            txt.startswith(self.__prefix) for _, txt in self._data
         ]
 
     def get_no_chk(self):
         return {
-            n: t.startswith(self.prefix) for n, t in sorted(self._data)
+            n: t.startswith(self.__prefix) for n, t in sorted(self._data)
         }
 
     def get_index_chk(self):
         return {
-            i: t.startswith(self.prefix) for i, (n, t) in enumerate(self._data)
+            i: t.startswith(self.__prefix)
+            for i, (n, t) in enumerate(self._data)
         }
 
     def add_data(self, chk, data):  # pylint: disable=arguments-differ
-        prefix = self.prefix if chk else ''
-        super().add_data(prefix + data)
+        __prefix = self.__prefix if chk else ''
+        super().add_data(__prefix + data)
 
 
 class Data(QStandardItemModel):
@@ -237,7 +238,7 @@ class Data(QStandardItemModel):
                 (self.__data['type'] == 1) & (self.__data['det'] == num)
             ] = txt
         for num, txt in enumerate(src_txt):
-            srcs[self.__data['type'] == num] = txt
+            srcs[self.__data['src'] == num] = txt
             dets[
                 (self.__data['type'] == 2) & (self.__data['det'] == num)
             ] = txt
