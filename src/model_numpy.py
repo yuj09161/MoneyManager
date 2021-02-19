@@ -407,8 +407,9 @@ class Data(QStandardItemModel):
             else:
                 real_date = self.__data[:self.row_count]['date']
                 if date >= real_date[-1]:  # append(=insert at end)
+                    index = self.row_count
                     self.appendRow(arr_to_qitem(args))
-                    self.__data[self.row_count] = parsed_data
+                    self.__data[index] = parsed_data
                 else:
                     index = np.searchsorted(real_date, date, 'right')
                     tmp_list = np.array(parsed_data, self.__data_form)
@@ -423,7 +424,7 @@ class Data(QStandardItemModel):
                             tmp_list, self.__data[index:MAX_DATA_CNT - 1]
                         )
                 self.row_count += 1
-                return parsed_data
+                return index, parsed_data
 
     def del_data(self, row_no):
         data = self.__data[row_no]

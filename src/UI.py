@@ -294,10 +294,10 @@ class TabData(QWidget):
         self.setObjectName(u"tabData")
         self.vlData = QVBoxLayout(self)
         self.vlData.setObjectName(u"vlData")
+
         self.treeData = QTreeView(self)
         self.treeData.setObjectName(u"treeData")
         self.treeData.setEditTriggers(QListView.NoEditTriggers)
-
         self.vlData.addWidget(self.treeData)
 
         self.widInput = QWidget(self)

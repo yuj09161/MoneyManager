@@ -1,6 +1,6 @@
 from PySide6.QtCore import Signal, Qt
 from PySide6.QtWidgets import (
-    QMainWindow, QMessageBox, QFileDialog, QLabel, QApplication
+    QMainWindow, QApplication, QLabel, QTreeView, QMessageBox, QFileDialog
 )
 
 import os
@@ -390,12 +390,20 @@ class MainWin(QMainWindow, Ui_MainWin):
             cost = self.tabData.lnCost.text()
             desc = self.tabData.lnDetail.text()
 
-            parsed = self.__data.add_data(date, type_, src, detail, cost, desc)
+            index, parsed = self.__data.add_data(
+                date, type_, src, detail, cost, desc
+            )
             self.__stat.add_data(parsed)
             self.__set_month(self.tabStatM.cbMonth.currentText())
+
+            self.tabData.treeData.scrollTo(
+                self.__data.index(index, 0), QTreeView.PositionAtCenter
+            )
         except Exception:  # pylint: disable=broad-except
-            msgbox = QMessageBox(QMessageBox.Warning, '경고',
-                                 f"{'잘못된 입력':70}", QMessageBox.Cancel, self)
+            msgbox = QMessageBox(
+                QMessageBox.Warning, '경고', f"{'잘못된 입력':70}",
+                QMessageBox.Cancel, self
+            )
             msgbox.setDetailedText(traceback.format_exc())
             msgbox.exec_()
         else:
@@ -410,22 +418,21 @@ class MainWin(QMainWindow, Ui_MainWin):
             self.tabData.lnDetail.setText('')
 
     def __del_data(self, data_no):
-        data = self.__data.del_data(data_no.row())
-        self.__stat.del_data(data)
-        self.__set_month(self.tabStatM.cbMonth.currentText())
-        self.__resize()
-        self.__saved = False
+        row = data_no.row()
+        if self.__data.get_at(row)[1] != 3:
+            data = self.__data.del_data(row)
+            self.__stat.del_data(data)
+            self.__set_month(self.tabStatM.cbMonth.currentText())
+            self.__resize()
+            self.__saved = False
 
     def __start_edit(self, sel, _):
         data_no = sel.indexes()[0]
         row_no = data_no.row()
 
-        data = self.__data.get_at(row_no)
-        type_ = data[1]
+        type_ = self.__data.get_at(row_no)[1]
 
-        if type_ == 3:
-            self.__end_edit()
-        else:
+        if type_ != 3:
             date = self.__data.item(row_no, 0).text()
             src = self.__data.item(row_no, 2).text()
             det = self.__data.item(row_no, 3).text()
@@ -478,13 +485,19 @@ class MainWin(QMainWindow, Ui_MainWin):
                 parsed = self.__data.set_at(
                     row_no, date, type_, src, detail, cost, desc
                 )
+                selection = self.__data.index(row_no, 0)
             else:
-                self.__del_data(data_no)
-                parsed = self.__data.add_data(
+                self.__data.del_data(data_no)
+                index, parsed = self.__data.add_data(
                     date, type_, src, detail, cost, desc
                 )
+                selection = self.__data.index(index, 0)
             self.__stat.add_data(parsed)
             self.__set_month(self.tabStatM.cbMonth.currentText())
+
+            self.tabData.treeData.scrollTo(
+                selection, QTreeView.PositionAtCenter
+            )
         except Exception:  # pylint: disable=broad-except
             msgbox = QMessageBox(
                 QMessageBox.Warning, '경고',
