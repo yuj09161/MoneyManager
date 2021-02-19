@@ -259,23 +259,21 @@ class GbAddDelChk(GbAddDelCate):
         self.chk.setText(QCoreApplication.translate("MoneyManage", chk_txt, None))
 
 
-class TabCate(QWidget):
-    def __init__(self, parent):
-        super().__init__(parent)
-
-        self.setObjectName(u"tabCate")
-        self.glCate = QGridLayout(self)
+class Ui_TabCate:
+    def setupUi(self, TabCate):
+        TabCate.setObjectName(u"tabCate")
+        self.glCate = QGridLayout(TabCate)
         self.glCate.setObjectName(u"glCate")
 
-        self.gbSrc = GbAddDelChk(self, u"\ud604\uae08\uc131")
+        self.gbSrc = GbAddDelChk(TabCate, u"\ud604\uae08\uc131")
         self.gbSrc.setObjectName(u"gbSrc")
         self.glCate.addWidget(self.gbSrc, 0, 0, 1, 1)
 
-        self.gbIn = GbAddDelCate(self)
+        self.gbIn = GbAddDelCate(TabCate)
         self.gbIn.setObjectName(u"gbIn")
         self.glCate.addWidget(self.gbIn, 0, 1, 1, 1)
 
-        self.gbOut = GbAddDelChk(self, u"\ud544\uc218\u003f")
+        self.gbOut = GbAddDelChk(TabCate, u"\ud544\uc218\u003f")
         self.gbOut.setObjectName(u"gbOut")
         self.glCate.addWidget(self.gbOut, 0, 2, 1, 1)
 
@@ -287,20 +285,18 @@ class TabCate(QWidget):
         self.gbOut.setTitle(QCoreApplication.translate("MoneyManage", u"\uc9c0\ucd9c \uc0c1\uc138(\uc0ac\uc6a9\ucc98)", None))
 
 
-class TabData(QWidget):
-    def __init__(self, parent):
-        super().__init__(parent)
-
-        self.setObjectName(u"tabData")
-        self.vlData = QVBoxLayout(self)
+class Ui_TabData:
+    def setupUi(self, TabData):
+        TabData.setObjectName(u"tabData")
+        self.vlData = QVBoxLayout(TabData)
         self.vlData.setObjectName(u"vlData")
 
-        self.treeData = QTreeView(self)
+        self.treeData = QTreeView(TabData)
         self.treeData.setObjectName(u"treeData")
         self.treeData.setEditTriggers(QListView.NoEditTriggers)
         self.vlData.addWidget(self.treeData)
 
-        self.widInput = QWidget(self)
+        self.widInput = QWidget(TabData)
         self.widInput.setObjectName(u"widInput")
         self.glDataIn = QGridLayout(self.widInput)
         self.glDataIn.setObjectName(u"glDataIn")
@@ -389,33 +385,33 @@ class TabData(QWidget):
         self.lnDetail.setMaxLength(64)
 
 
-class TabStatS(QWidget):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.setObjectName(u"tabStatS")
-        self.glSum = QGridLayout(self)
+class Ui_TabStatS:
+    def setupUi(self, TabStatS):
+        TabStatS.setObjectName(u"tabStatS")
+        self.glSum = QGridLayout(TabStatS)
         self.glSum.setObjectName(u"glSum")
 
-        self.treeStatS = QTreeView(self)
+        self.treeStatS = QTreeView(TabStatS)
         self.treeStatS.setObjectName(u"treeStatS")
         self.treeStatS.setEditTriggers(QListView.NoEditTriggers)
         self.glSum.addWidget(self.treeStatS, 0, 0, 1, 1)
 
 
-class TabStatM(QScrollArea):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.setupUi()
+class Ui_TabStatM:
+    def setupUi(self, TabStatM):
+        if not TabStatM.objectName():
+            TabStatM.setObjectName(u"TabStatM")
 
-    def setupUi(self):
-        if not self.objectName():
-            self.setObjectName(u"self")
-        self.setWidgetResizable(True)
+        self.glCent = QGridLayout(TabStatM)
+        self.glCent.setContentsMargins(0, 0, 0, 0)
 
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.scCent = QScrollArea(TabStatM)
+        self.scCent.setWidgetResizable(True)
+        self.scCent.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.scCent.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.glCent.addWidget(self.scCent, 0, 0)
 
-        self.widCent = QWidget(self)
+        self.widCent = QWidget(self.scCent)
         sizePolicy_EE.setHeightForWidth(self.widCent.sizePolicy().hasHeightForWidth())
         self.widCent.setSizePolicy(sizePolicy_EE)
         self.glCent = QGridLayout(self.widCent)
@@ -584,7 +580,7 @@ class TabStatM(QScrollArea):
         self.glCent.addWidget(self.gbStat, 3, 0, 1, 2)
 
 
-        self.setWidget(self.widCent)
+        self.scCent.setWidget(self.widCent)
 
         self.retranslateUi()
 
@@ -693,18 +689,6 @@ class Ui_MainWin:
 
         self.tabWidget = QTabWidget(self.centralwidget)
         self.tabWidget.setObjectName(u"tabWidget")
-
-        self.tabCate = TabCate(self)
-        self.tabWidget.addTab(self.tabCate, u"\ubd84\ub958 \uad00\ub9ac")
-
-        self.tabData = TabData(self)
-        self.tabWidget.addTab(self.tabData, u"\uae30\ub85d \ucd94\uac00/\uc218\uc815")
-
-        self.tabStatS = TabStatS(self)
-        self.tabWidget.addTab(self.tabStatS, u"\uac04\ub7b5\ud1b5\uacc4")
-
-        self.tabStatM = TabStatM(self)
-        self.tabWidget.addTab(self.tabStatM, u"\uc6d4\ubcc4\ud1b5\uacc4")
 
         self.glCent.addWidget(self.tabWidget, 0, 0, 1, 1)
 

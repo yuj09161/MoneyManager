@@ -1,6 +1,7 @@
 from PySide6.QtCore import Signal, Qt
 from PySide6.QtWidgets import (
-    QMainWindow, QApplication, QLabel, QTreeView, QMessageBox, QFileDialog
+    QMainWindow, QApplication, QWidget,
+    QLabel, QTreeView, QMessageBox, QFileDialog
 )
 
 import os
@@ -12,7 +13,10 @@ import traceback
 
 import ftplib
 
-from UI import Ui_Txt, Ui_Info, Ui_Pg, Ui_Login, Ui_MainWin
+from UI import (
+    Ui_Txt, Ui_Info, Ui_Pg, Ui_Login, Ui_MainWin,
+    Ui_TabCate, Ui_TabData, Ui_TabStatS, Ui_TabStatM
+)
 from model_numpy import Data, Stat_Data
 
 
@@ -167,6 +171,481 @@ class Login(QMainWindow, Ui_Login):
             signal.emit(2, {}, traceback.format_exc())
 
 
+class TabCate(QWidget, Ui_TabCate):
+    def __init__(self, parent, models, functions):
+        super().__init__(parent)
+        self.setupUi(self)
+
+        self.__data = models['data']
+        self.__stat = models['stat']
+
+        self.__set_saved = functions['set_saved']
+        self.__set_stat_type = functions['set_stat_type']
+
+        # set model
+        self.gbSrc.lvOrd.setModel(self.__data.sources)
+        self.gbIn.lvOrd.setModel(self.__data.in_type)
+        self.gbOut.lvOrd.setModel(self.__data.out_type)
+
+        # connect signals
+        self.gbSrc.btnAdd.clicked.connect(self.__add_source)
+        self.gbIn.btnAdd.clicked.connect(self.__add_in)
+        self.gbOut.btnAdd.clicked.connect(self.__add_out)
+
+        self.__data.sources.order_changed.connect(self.__change_ord)
+        self.__data.in_type.order_changed.connect(self.__change_ord)
+        self.__data.out_type.order_changed.connect(self.__change_ord)
+
+    # this func is based from stackoverflow question 1263451
+    def _set_save_and_stattype(func):  # pylint: disable=no-self-argument
+        def inner(self, *args, **kwargs):
+            # pylint: disable=protected-access, redefined-outer-name
+            res = func(self, *args, **kwargs)
+            self.__set_saved(False)
+            self.__set_stat_type()
+            return res
+        return inner
+
+    @_set_save_and_stattype
+    def __change_ord(self):
+        pass
+
+    @_set_save_and_stattype
+    def __add_source(self):
+        checked = bool(self.gbSrc.chk.checkState())
+        self.__data.sources.add_data(checked, self.gbSrc.lnAdd.text())
+
+    @_set_save_and_stattype
+    def __del_source(self):
+        self.__data.sources.del_at(self.gbSrc.cbDel.currentIndex())
+
+    @_set_save_and_stattype
+    def __add_in(self):
+        self.__data.in_type.add_data(self.gbIn.lnAdd.text())
+
+    @_set_save_and_stattype
+    def __del_in(self):
+        self.__data.in_type.del_at(self.gbIn.cbDel.currentIndex())
+
+    @_set_save_and_stattype
+    def __add_out(self):
+        checked = bool(self.gbOut.chk.checkState())
+        self.__data.out_type.add_data(checked, self.gbOut.lnAdd.text())
+
+    @_set_save_and_stattype
+    def __del_out(self):
+        self.__data.out_type.del_at(self.gbOut.cbDel.currentIndex())
+
+
+class TabData(QWidget, Ui_TabData):
+    def __init__(self, parent, models, functions):
+        super().__init__(parent)
+        self.setupUi(self)
+
+        self.__data = models['data']
+        self.__stat = models['stat']
+
+        self.__refresh_stat = functions['refresh_stat']
+        self.__set_saved = functions['set_saved']
+
+        # set model
+        self.treeData.setModel(self.__data)
+        self.cbType.setModel(self.__data.type)
+        self.cbSrc.setModel(self.__data.sources)
+        self.cbDetail.setModel(self.__data.in_type)
+
+        # connect signals
+        self.treeData.selectionModel()\
+            .selectionChanged.connect(self.__start_edit)
+
+        self.cbType.currentIndexChanged.connect(self.__set_type)
+
+        self.treeData.doubleClicked.connect(self.__del_data)
+        self.btnAddData.clicked.connect(self.__add_data)
+        self.btnCancel.clicked.connect(self.__end_edit)
+
+    def resize(self):
+        for k in range(0, self.__data.column_count):
+            self.treeData.resizeColumnToContents(k)
+
+    def __add_data(self):
+        try:
+            date = self.lnDate.text()
+            diff = (
+                datetime.date.today() - datetime.date.fromisoformat(date)
+            ).days
+            if diff > 30:
+                response = QMessageBox.warning(
+                    self, '날짜 주의',
+                    '현재보다 30일 이상 이전 날짜\n정확한 날짜?',
+                    QMessageBox.Ok | QMessageBox.Cancel
+                )
+                if response == QMessageBox.Cancel:
+                    return
+            elif diff < 0:
+                response = QMessageBox.warning(
+                    self, '날짜 주의',
+                    '미래의 날짜\n정확한 날짜?',
+                    QMessageBox.Ok | QMessageBox.Cancel
+                )
+                if response == QMessageBox.Cancel:
+                    return
+
+            type_ = self.cbType.currentText()
+            src = self.cbSrc.currentText()
+            detail = self.cbDetail.currentText()
+            cost = self.lnCost.text()
+            desc = self.lnDetail.text()
+
+            index, parsed = self.__data.add_data(
+                date, type_, src, detail, cost, desc
+            )
+            self.__stat.add_data(parsed)
+            self.__refresh_stat()
+
+            self.treeData.scrollTo(
+                self.__data.index(index, 0), QTreeView.PositionAtCenter
+            )
+        except Exception:  # pylint: disable=broad-except
+            msgbox = QMessageBox(
+                QMessageBox.Warning, '경고', f"{'잘못된 입력':70}",
+                QMessageBox.Cancel, self
+            )
+            msgbox.setDetailedText(traceback.format_exc())
+            msgbox.exec_()
+        else:
+            self.resize()
+            self.__set_saved(False)
+
+            self.lnDate.setText('')
+            self.cbType.setCurrentIndex(0)
+            self.cbSrc.setCurrentIndex(0)
+            self.cbDetail.setCurrentIndex(0)
+            self.lnCost.setText('')
+            self.lnDetail.setText('')
+
+    def __del_data(self, data_no):
+        row = data_no.row()
+        if self.__data.get_at(row)[1] != 3:
+            data = self.__data.del_data(row)
+            self.__stat.del_data(data)
+            self.__refresh_stat()
+            self.resize()
+            self.__set_saved(False)
+
+    def __start_edit(self, sel, _):
+        data_no = sel.indexes()[0]
+        row_no = data_no.row()
+
+        type_ = self.__data.get_at(row_no)[1]
+
+        if type_ != 3:
+            date = self.__data.item(row_no, 0).text()
+            src = self.__data.item(row_no, 2).text()
+            det = self.__data.item(row_no, 3).text()
+            cost = self.__data.item(row_no, 4).text()
+            desc = self.__data.item(row_no, 5).text()
+
+            self.lnDate.setText(date)
+            self.cbType.setCurrentIndex(type_)
+            self.cbSrc.setCurrentText(src)
+            self.cbDetail.setCurrentText(det)
+            self.lnCost.setText(cost)
+            self.lnDetail.setText(desc)
+
+            self.btnAddData.setText('수정')
+            self.btnCancel.show()
+            self.btnAddData.clicked.disconnect()
+            self.btnAddData.clicked.connect(
+                lambda: self.__edit_data(data_no, date)
+            )
+
+    def __end_edit(self):
+        self.lnDate.setText('')
+        self.cbType.setCurrentIndex(0)
+        self.cbSrc.setCurrentIndex(0)
+        self.cbDetail.setCurrentIndex(0)
+        self.lnCost.setText('')
+        self.lnDetail.setText('')
+
+        self.btnAddData.setText('추가')
+        self.btnCancel.hide()
+        self.btnAddData.clicked.disconnect()
+        self.btnAddData.clicked.connect(self.__add_data)
+
+    def __edit_data(self, data_no, priv_date):
+        row_no = data_no.row()
+
+        # delete stat
+        data = self.__data.get_at(row_no)
+        self.__stat.del_data(data)
+        # change data & add stat
+        try:
+            date = self.lnDate.text()
+            type_ = self.cbType.currentText()
+            src = self.cbSrc.currentText()
+            detail = self.cbDetail.currentText()
+            cost = self.lnCost.text()
+            desc = self.lnDetail.text()
+
+            if date == priv_date:
+                parsed = self.__data.set_at(
+                    row_no, date, type_, src, detail, cost, desc
+                )
+                selection = self.__data.index(row_no, 0)
+            else:
+                self.__data.del_data(row_no)
+                index, parsed = self.__data.add_data(
+                    date, type_, src, detail, cost, desc
+                )
+                selection = self.__data.index(index, 0)
+            self.__stat.add_data(parsed)
+            self.__refresh_stat()
+
+            self.treeData.scrollTo(
+                selection, QTreeView.PositionAtCenter
+            )
+        except Exception:  # pylint: disable=broad-except
+            msgbox = QMessageBox(
+                QMessageBox.Warning, '경고',
+                f"{'잘못된 입력':70}",
+                QMessageBox.Cancel,
+                self
+            )
+            msgbox.setDetailedText(traceback.format_exc())
+            msgbox.exec_()
+        else:
+            self.resize()
+            self.__set_saved(False)
+            self.__end_edit()
+
+    def __set_type(self, index):
+        if index == 2:
+            self.lbDetail.setText('이동처')
+        else:
+            self.lbDetail.setText('상세')
+
+        self.cbDetail.setModel(self.__data.list_detail[index])
+
+
+class TabStatS(QWidget, Ui_TabStatS):
+    def __init__(self, parent, models):
+        super().__init__(parent)
+        self.setupUi(self)
+
+        self.__stat = models['stat']
+
+        # set model
+        self.treeStatS.setModel(self.__stat)
+
+
+class TabStatM(QWidget, Ui_TabStatM):
+    def __init__(self, parent, models):
+        super().__init__(parent)
+        self.setupUi(self)
+
+        self.__data = models['data']
+        self.__stat = models['stat']
+
+        self.__refresh = True
+        self.__title_labels = None
+        self.__data_labels = None
+        self.__sum_labels = None
+
+        # set model
+        self.cbMonth.setModel(self.__stat.months)
+
+        # connect signals
+        self.cbMonth.currentTextChanged.connect(self.__set_month)
+
+    def refresh_stat(self):
+        self.__set_month(self.cbMonth.currentText())
+
+    def __set_month(self, text):
+        if text and text != '-':  # if month -> set data
+            m_c = tuple(map(int, text.split('-')))
+            raw_data = self.__stat.get_month(m_c)
+            if raw_data:
+                data, sums = raw_data
+
+                src_ni = self.__data.sources.get_index_no()
+                in_ni = self.__data.in_type.get_index_no()
+                out_ni = self.__data.out_type.get_index_no()
+
+                data_changer = (
+                    src_ni, src_ni, src_ni, in_ni, out_ni, src_ni, src_ni
+                )
+                for wids, type_, changer in zip(
+                        self.__data_labels, self.__stat.data_name[2:],
+                        data_changer
+                        ):
+                    for b, wid in enumerate(wids):
+                        wid.setText(str(data[type_][changer[b]]))
+
+                for wid, sum_ in zip(self.__sum_labels, sums):
+                    wid.setText(sum_)
+        else:  # if not month -> clear
+            for wids in self.__data_labels:
+                for wid in wids:
+                    wid.setText('')
+            for wid in self.__sum_labels:
+                wid.setText('')
+
+    def set_stat_type(self):
+        try:
+            self.cbMonth.currentTextChanged.disconnect()
+        except Exception:  # pylint: disable=broad-except
+            pass
+
+        grids = (self.glCurrent, self.glIncome,
+                 self.glOutcome, self.glMove)
+        for grid in grids:
+            for k in reversed(range(grid.count())):
+                wid = grid.itemAt(k).widget()
+                if not wid.objectName():
+                    wid.deleteLater()
+
+        data = self.__data.get_data()
+
+        src_no = self.__data.sources.get_no()
+        in_no = self.__data.in_type.get_no()
+        out_no = self.__data.out_type.get_no()
+
+        src_txt = self.__data.sources.get_txt()
+        in_txt = self.__data.in_type.get_txt()
+        out_txt = self.__data.out_type.get_txt()
+
+        is_cash = self.__data.sources.get_chk_no()
+        is_ness = self.__data.out_type.get_chk_no()
+
+        self.__stat.set_type(src_no, in_no, out_no, is_cash, is_ness)
+        self.__stat.set_data(data)
+
+        # generate stat labels
+        self.lbTitleIncomeS = []
+        self.lbTitleOutcomeS = []
+        self.lbTitleCurrent = []
+        self.lbTitleMoveIn = []
+        self.lbTitleMoveOut = []
+
+        self.lbDataIncomeS = []
+        self.lbDataOutcomeS = []
+        self.lbDataCurrent = []
+        self.lbDataMoveIn = []
+        self.lbDataMoveOut = []
+
+        self.lbTitleIncomeT = []
+        self.lbDataIncomeT = []
+
+        self.lbTitleOutcomeT = []
+        self.lbDataOutcomeT = []
+
+        self.__title_labels = (
+            self.lbTitleCurrent,
+            self.lbTitleIncomeS,
+            self.lbTitleOutcomeS,
+            self.lbTitleIncomeT,
+            self.lbTitleOutcomeT,
+            self.lbTitleMoveIn,
+            self.lbTitleMoveOut
+        )
+        self.__data_labels = (
+            self.lbDataCurrent,
+            self.lbDataIncomeS,
+            self.lbDataOutcomeS,
+            self.lbDataIncomeT,
+            self.lbDataOutcomeT,
+            self.lbDataMoveIn,
+            self.lbDataMoveOut
+        )
+        self.__sum_labels = (
+            self.lbSumIncome,
+            self.lbSumOutcome,
+            self.lbSumCurrent,
+            self.lbSumCash,
+            self.lbSumMove,
+            self.lbNet,
+            self.lbOut1,
+            self.lbOut2
+        )
+
+        for k, txt in enumerate(src_txt):
+            lbTitleIncome = QLabel(txt, self.gbIncome)
+            lbTitleOutcome = QLabel(txt, self.gbOutcome)
+            lbTitleCurrent = QLabel(txt, self.gbCurrent)
+            lbTitleMoveIn = QLabel(txt, self.gbMove)
+            lbTitleMoveOut = QLabel(txt, self.gbMove)
+
+            lbTitleIncome.setAlignment(Qt.AlignCenter)
+            lbTitleOutcome.setAlignment(Qt.AlignCenter)
+            lbTitleCurrent.setAlignment(Qt.AlignCenter)
+            lbTitleMoveIn.setAlignment(Qt.AlignCenter)
+            lbTitleMoveOut.setAlignment(Qt.AlignCenter)
+
+            self.lbTitleIncomeS.append(lbTitleIncome)
+            self.lbTitleOutcomeS.append(lbTitleOutcome)
+            self.lbTitleCurrent.append(lbTitleCurrent)
+            self.lbTitleMoveIn.append(lbTitleMoveIn)
+            self.lbTitleMoveOut.append(lbTitleMoveOut)
+
+            self.glIncome.addWidget(lbTitleIncome, k + 2, 2, 1, 1)
+            self.glOutcome.addWidget(lbTitleOutcome, k + 2, 2, 1, 1)
+            self.glCurrent.addWidget(lbTitleCurrent, k + 2, 0, 1, 1)
+            self.glMove.addWidget(lbTitleMoveIn, k + 2, 0, 1, 1)
+            self.glMove.addWidget(lbTitleMoveOut, k + 2, 2, 1, 1)
+
+            lbDataIncome = QLabel(self.gbIncome)
+            lbDataOutcome = QLabel(self.gbOutcome)
+            lbDataCurrent = QLabel(self.gbCurrent)
+            lbDataMoveOut = QLabel(self.gbMove)
+            lbDataMoveIn = QLabel(self.gbMove)
+
+            lbDataIncome.setAlignment(Qt.AlignCenter)
+            lbDataOutcome.setAlignment(Qt.AlignCenter)
+            lbDataCurrent.setAlignment(Qt.AlignCenter)
+            lbDataMoveOut.setAlignment(Qt.AlignCenter)
+            lbDataMoveIn.setAlignment(Qt.AlignCenter)
+
+            self.lbDataIncomeS.append(lbDataIncome)
+            self.lbDataOutcomeS.append(lbDataOutcome)
+            self.lbDataCurrent.append(lbDataCurrent)
+            self.lbDataMoveOut.append(lbDataMoveOut)
+            self.lbDataMoveIn.append(lbDataMoveIn)
+
+            self.glIncome.addWidget(lbDataIncome, k + 2, 3, 1, 1)
+            self.glOutcome.addWidget(lbDataOutcome, k + 2, 3, 1, 1)
+            self.glCurrent.addWidget(lbDataCurrent, k + 2, 1, 1, 1)
+            self.glMove.addWidget(lbDataMoveOut, k + 2, 1, 1, 1)
+            self.glMove.addWidget(lbDataMoveIn, k + 2, 3, 1, 1)
+
+        for k, txt in enumerate(in_txt):
+            lbTitleIncome = QLabel(txt, self.gbIncome)
+            lbTitleIncome.setAlignment(Qt.AlignCenter)
+            self.lbTitleIncomeT.append(lbTitleIncome)
+            self.glIncome.addWidget(lbTitleIncome, k + 2, 0, 1, 1)
+
+            lbDataIncome = QLabel(self.gbIncome)
+            lbDataIncome.setAlignment(Qt.AlignCenter)
+            self.lbDataIncomeT.append(lbDataIncome)
+            self.glIncome.addWidget(lbDataIncome, k + 2, 1, 1, 1)
+
+        for k, txt in enumerate(out_txt):
+            lbTitleOutcome = QLabel(txt, self.gbOutcome)
+            lbTitleOutcome.setAlignment(Qt.AlignCenter)
+            self.lbTitleOutcomeT.append(lbTitleOutcome)
+            self.glOutcome.addWidget(lbTitleOutcome, k + 2, 0, 1, 1)
+
+            lbDataOutcome = QLabel(self.gbOutcome)
+            lbDataOutcome.setAlignment(Qt.AlignCenter)
+            self.lbDataOutcomeT.append(lbDataOutcome)
+            self.glOutcome.addWidget(lbDataOutcome, k + 2, 1, 1, 1)
+
+        for wid in self.__sum_labels:
+            wid.setText('')
+
+        self.cbMonth.currentTextChanged.connect(self.__set_month)
+
+
 class MainWin(QMainWindow, Ui_MainWin):
     __export_text = (
         'Excel 호환(*.tsv)',
@@ -195,13 +674,45 @@ class MainWin(QMainWindow, Ui_MainWin):
         # define instance variable
         self.__saved = True
         self.__last_file = ''
-        self.__title_labels = tuple()
-        self.__data_labels = tuple()
-        self.__sum_labels = tuple()
 
         # define models
-        self.__data = Data(self.tabData.treeData)
-        self.__stat = Stat_Data(self.tabStatS.treeStatS)
+        self.__data = Data(None)
+        self.__stat = Stat_Data(None)
+        models = {
+            'data': self.__data,
+            'stat': self.__stat
+        }
+
+        # define tabs
+        self.tabStatM = TabStatM(self, models)
+        self.tabStatS = TabStatS(self, models)
+
+        functions = {
+            'refresh_stat': self.tabStatM.refresh_stat,
+            'set_stat_type': self.tabStatM.set_stat_type,
+            'set_saved': self.set_saved
+        }
+
+        self.tabData = TabData(self, models, functions)
+        self.tabCate = TabCate(self, models, functions)
+
+        # add tabs
+        self.tabWidget.addTab(
+            self.tabCate, u"\ubd84\ub958 \uad00\ub9ac"
+        )
+        self.tabWidget.addTab(
+            self.tabData, u"\uae30\ub85d \ucd94\uac00/\uc218\uc815"
+        )
+        self.tabWidget.addTab(
+            self.tabStatS, u"\uac04\ub7b5\ud1b5\uacc4"
+        )
+        self.tabWidget.addTab(
+            self.tabStatM, u"\uc6d4\ubcc4\ud1b5\uacc4"
+        )
+
+        # set models' parent
+        self.__data.setParent(self.tabData.treeData)
+        self.__stat.setParent(self.tabStatS.treeStatS)
 
         # define sub-windows
         self.__login_win = Login(self)
@@ -225,7 +736,8 @@ class MainWin(QMainWindow, Ui_MainWin):
                 txt = file.read()
         except Exception:  # pylint: disable=broad-except
             self.__license_win = Txt(
-                self, 'License', 'License file (License) does not exist')
+                self, 'License', 'License file (License) does not exist'
+            )
         else:
             self.__license_win = Txt(self, 'License', txt)
 
@@ -256,20 +768,6 @@ class MainWin(QMainWindow, Ui_MainWin):
             if os.path.isfile(last_file):
                 self.__load(last_file)
 
-        # set model
-        self.tabCate.gbSrc.lvOrd.setModel(self.__data.sources)
-        self.tabCate.gbIn.lvOrd.setModel(self.__data.in_type)
-        self.tabCate.gbOut.lvOrd.setModel(self.__data.out_type)
-
-        self.tabData.treeData.setModel(self.__data)
-        self.tabData.cbType.setModel(self.__data.type)
-        self.tabData.cbSrc.setModel(self.__data.sources)
-        self.tabData.cbDetail.setModel(self.__data.in_type)
-
-        self.tabStatS.treeStatS.setModel(self.__stat)
-
-        self.tabStatM.cbMonth.setModel(self.__stat.months)
-
         # connect signals
         self.acLoad.triggered.connect(self.__load_as)
         self.acSave.triggered.connect(self.__save)
@@ -283,25 +781,8 @@ class MainWin(QMainWindow, Ui_MainWin):
         self.acOpenLicense.triggered.connect(self.__opensource_win.show)
         self.acLicense.triggered.connect(self.__license_win.show)
 
-        self.__data.sources.order_changed.connect(self.__change_ord)
-        self.__data.in_type.order_changed.connect(self.__change_ord)
-        self.__data.out_type.order_changed.connect(self.__change_ord)
-
-        self.tabCate.gbSrc.btnAdd.clicked.connect(self.__add_source)
-        self.tabCate.gbIn.btnAdd.clicked.connect(self.__add_in)
-        self.tabCate.gbOut.btnAdd.clicked.connect(self.__add_out)
-
-        self.tabData.treeData.selectionModel()\
-            .selectionChanged.connect(self.__start_edit)
-
-        self.tabData.cbType.currentIndexChanged.connect(self.__set_type)
-
-        self.tabData.treeData.doubleClicked.connect(self.__del_data)
-        self.tabData.btnAddData.clicked.connect(self.__add_data)
-        self.tabData.btnCancel.clicked.connect(self.__end_edit)
-        self.tabStatM.cbMonth.currentTextChanged.connect(self.__set_month)
-
-        self.__resize()
+    def set_saved(self, value):
+        self.__saved = value
 
     def __do_transfer(self):
         def next_trans(res, data, err_txt):
@@ -357,393 +838,6 @@ class MainWin(QMainWindow, Ui_MainWin):
         self.__err_win.set_text(f'{err_type}\n{txt}')
         self.__err_win.show()
 
-    def __resize(self):
-        for k in range(0, self.__data.column_count):
-            self.tabData.treeData.resizeColumnToContents(k)
-
-    def __add_data(self):
-        try:
-            date = self.tabData.lnDate.text()
-            diff = (
-                datetime.date.today() - datetime.date.fromisoformat(date)
-            ).days
-            if diff > 30:
-                response = QMessageBox.warning(
-                    self, '날짜 주의',
-                    '현재보다 30일 이상 이전 날짜\n정확한 날짜?',
-                    QMessageBox.Ok | QMessageBox.Cancel
-                )
-                if response == QMessageBox.Cancel:
-                    return
-            elif diff < 0:
-                response = QMessageBox.warning(
-                    self, '날짜 주의',
-                    '미래의 날짜\n정확한 날짜?',
-                    QMessageBox.Ok | QMessageBox.Cancel
-                )
-                if response == QMessageBox.Cancel:
-                    return
-
-            type_ = self.tabData.cbType.currentText()
-            src = self.tabData.cbSrc.currentText()
-            detail = self.tabData.cbDetail.currentText()
-            cost = self.tabData.lnCost.text()
-            desc = self.tabData.lnDetail.text()
-
-            index, parsed = self.__data.add_data(
-                date, type_, src, detail, cost, desc
-            )
-            self.__stat.add_data(parsed)
-            self.__set_month(self.tabStatM.cbMonth.currentText())
-
-            self.tabData.treeData.scrollTo(
-                self.__data.index(index, 0), QTreeView.PositionAtCenter
-            )
-        except Exception:  # pylint: disable=broad-except
-            msgbox = QMessageBox(
-                QMessageBox.Warning, '경고', f"{'잘못된 입력':70}",
-                QMessageBox.Cancel, self
-            )
-            msgbox.setDetailedText(traceback.format_exc())
-            msgbox.exec_()
-        else:
-            self.__resize()
-            self.__saved = False
-
-            self.tabData.lnDate.setText('')
-            self.tabData.cbType.setCurrentIndex(0)
-            self.tabData.cbSrc.setCurrentIndex(0)
-            self.tabData.cbDetail.setCurrentIndex(0)
-            self.tabData.lnCost.setText('')
-            self.tabData.lnDetail.setText('')
-
-    def __del_data(self, data_no):
-        row = data_no.row()
-        if self.__data.get_at(row)[1] != 3:
-            data = self.__data.del_data(row)
-            self.__stat.del_data(data)
-            self.__set_month(self.tabStatM.cbMonth.currentText())
-            self.__resize()
-            self.__saved = False
-
-    def __start_edit(self, sel, _):
-        data_no = sel.indexes()[0]
-        row_no = data_no.row()
-
-        type_ = self.__data.get_at(row_no)[1]
-
-        if type_ != 3:
-            date = self.__data.item(row_no, 0).text()
-            src = self.__data.item(row_no, 2).text()
-            det = self.__data.item(row_no, 3).text()
-            cost = self.__data.item(row_no, 4).text()
-            desc = self.__data.item(row_no, 5).text()
-
-            self.tabData.lnDate.setText(date)
-            self.tabData.cbType.setCurrentIndex(type_)
-            self.tabData.cbSrc.setCurrentText(src)
-            self.tabData.cbDetail.setCurrentText(det)
-            self.tabData.lnCost.setText(cost)
-            self.tabData.lnDetail.setText(desc)
-
-            self.tabData.btnAddData.setText('수정')
-            self.tabData.btnCancel.show()
-            self.tabData.btnAddData.clicked.disconnect()
-            self.tabData.btnAddData.clicked.connect(
-                lambda: self.__edit_data(data_no, date)
-            )
-
-    def __end_edit(self):
-        self.tabData.lnDate.setText('')
-        self.tabData.cbType.setCurrentIndex(0)
-        self.tabData.cbSrc.setCurrentIndex(0)
-        self.tabData.cbDetail.setCurrentIndex(0)
-        self.tabData.lnCost.setText('')
-        self.tabData.lnDetail.setText('')
-
-        self.tabData.btnAddData.setText('추가')
-        self.tabData.btnCancel.hide()
-        self.tabData.btnAddData.clicked.disconnect()
-        self.tabData.btnAddData.clicked.connect(self.__add_data)
-
-    def __edit_data(self, data_no, priv_date):
-        row_no = data_no.row()
-
-        # delete stat
-        data = self.__data.get_at(row_no)
-        self.__stat.del_data(data)
-        # change data & add stat
-        try:
-            date = self.tabData.lnDate.text()
-            type_ = self.tabData.cbType.currentText()
-            src = self.tabData.cbSrc.currentText()
-            detail = self.tabData.cbDetail.currentText()
-            cost = self.tabData.lnCost.text()
-            desc = self.tabData.lnDetail.text()
-
-            if date == priv_date:
-                parsed = self.__data.set_at(
-                    row_no, date, type_, src, detail, cost, desc
-                )
-                selection = self.__data.index(row_no, 0)
-            else:
-                self.__data.del_data(data_no)
-                index, parsed = self.__data.add_data(
-                    date, type_, src, detail, cost, desc
-                )
-                selection = self.__data.index(index, 0)
-            self.__stat.add_data(parsed)
-            self.__set_month(self.tabStatM.cbMonth.currentText())
-
-            self.tabData.treeData.scrollTo(
-                selection, QTreeView.PositionAtCenter
-            )
-        except Exception:  # pylint: disable=broad-except
-            msgbox = QMessageBox(
-                QMessageBox.Warning, '경고',
-                f"{'잘못된 입력':70}",
-                QMessageBox.Cancel,
-                self
-            )
-            msgbox.setDetailedText(traceback.format_exc())
-            msgbox.exec_()
-        else:
-            self.__resize()
-            self.__saved = False
-            self.__end_edit()
-
-    def __set_month(self, text):
-        if text and text != '-':  # if month -> set data
-            m_c = tuple(map(int, text.split('-')))
-            raw_data = self.__stat.get_month(m_c)
-            if raw_data:
-                data, sums = raw_data
-
-                src_ni = self.__data.sources.get_index_no()
-                in_ni = self.__data.in_type.get_index_no()
-                out_ni = self.__data.out_type.get_index_no()
-
-                data_changer = (
-                    src_ni, src_ni, src_ni, in_ni, out_ni, src_ni, src_ni
-                )
-                for wids, type_, changer in zip(
-                        self.__data_labels, self.__stat.data_name[2:],
-                        data_changer
-                        ):
-                    for b, wid in enumerate(wids):
-                        wid.setText(str(data[type_][changer[b]]))
-
-                for wid, sum_ in zip(self.__sum_labels, sums):
-                    wid.setText(sum_)
-        else:  # if not month -> clear
-            for wids in self.__data_labels:
-                for wid in wids:
-                    wid.setText('')
-            for wid in self.__sum_labels:
-                wid.setText('')
-
-    def __set_stat_type(self):
-        try:
-            self.tabStatM.cbMonth.currentTextChanged.disconnect()
-        except Exception:  # pylint: disable=broad-except
-            pass
-
-        grids = (self.tabStatM.glCurrent, self.tabStatM.glIncome,
-                 self.tabStatM.glOutcome, self.tabStatM.glMove)
-        for grid in grids:
-            for k in reversed(range(grid.count())):
-                wid = grid.itemAt(k).widget()
-                if not wid.objectName():
-                    wid.deleteLater()
-
-        data = self.__data.get_data()
-
-        src_no = self.__data.sources.get_no()
-        in_no = self.__data.in_type.get_no()
-        out_no = self.__data.out_type.get_no()
-
-        src_txt = self.__data.sources.get_txt()
-        in_txt = self.__data.in_type.get_txt()
-        out_txt = self.__data.out_type.get_txt()
-
-        is_cash = self.__data.sources.get_chk_no()
-        is_ness = self.__data.out_type.get_chk_no()
-
-        self.__stat.set_type(src_no, in_no, out_no, is_cash, is_ness)
-        self.__stat.set_data(data)
-
-        # generate stat labels
-        self.tabStatM.lbTitleIncomeS = []
-        self.tabStatM.lbTitleOutcomeS = []
-        self.tabStatM.lbTitleCurrent = []
-        self.tabStatM.lbTitleMoveIn = []
-        self.tabStatM.lbTitleMoveOut = []
-
-        self.tabStatM.lbDataIncomeS = []
-        self.tabStatM.lbDataOutcomeS = []
-        self.tabStatM.lbDataCurrent = []
-        self.tabStatM.lbDataMoveIn = []
-        self.tabStatM.lbDataMoveOut = []
-
-        self.tabStatM.lbTitleIncomeT = []
-        self.tabStatM.lbDataIncomeT = []
-
-        self.tabStatM.lbTitleOutcomeT = []
-        self.tabStatM.lbDataOutcomeT = []
-
-        self.__title_labels = (
-            self.tabStatM.lbTitleCurrent,
-            self.tabStatM.lbTitleIncomeS,
-            self.tabStatM.lbTitleOutcomeS,
-            self.tabStatM.lbTitleIncomeT,
-            self.tabStatM.lbTitleOutcomeT,
-            self.tabStatM.lbTitleMoveIn,
-            self.tabStatM.lbTitleMoveOut
-        )
-        self.__data_labels = (
-            self.tabStatM.lbDataCurrent,
-            self.tabStatM.lbDataIncomeS,
-            self.tabStatM.lbDataOutcomeS,
-            self.tabStatM.lbDataIncomeT,
-            self.tabStatM.lbDataOutcomeT,
-            self.tabStatM.lbDataMoveIn,
-            self.tabStatM.lbDataMoveOut
-        )
-        self.__sum_labels = (
-            self.tabStatM.lbSumIncome,
-            self.tabStatM.lbSumOutcome,
-            self.tabStatM.lbSumCurrent,
-            self.tabStatM.lbSumCash,
-            self.tabStatM.lbSumMove,
-            self.tabStatM.lbNet,
-            self.tabStatM.lbOut1,
-            self.tabStatM.lbOut2
-        )
-
-        for k, txt in enumerate(src_txt):
-            lbTitleIncome = QLabel(txt, self.tabStatM.gbIncome)
-            lbTitleOutcome = QLabel(txt, self.tabStatM.gbOutcome)
-            lbTitleCurrent = QLabel(txt, self.tabStatM.gbCurrent)
-            lbTitleMoveIn = QLabel(txt, self.tabStatM.gbMove)
-            lbTitleMoveOut = QLabel(txt, self.tabStatM.gbMove)
-
-            lbTitleIncome.setAlignment(Qt.AlignCenter)
-            lbTitleOutcome.setAlignment(Qt.AlignCenter)
-            lbTitleCurrent.setAlignment(Qt.AlignCenter)
-            lbTitleMoveIn.setAlignment(Qt.AlignCenter)
-            lbTitleMoveOut.setAlignment(Qt.AlignCenter)
-
-            self.tabStatM.lbTitleIncomeS.append(lbTitleIncome)
-            self.tabStatM.lbTitleOutcomeS.append(lbTitleOutcome)
-            self.tabStatM.lbTitleCurrent.append(lbTitleCurrent)
-            self.tabStatM.lbTitleMoveIn.append(lbTitleMoveIn)
-            self.tabStatM.lbTitleMoveOut.append(lbTitleMoveOut)
-
-            self.tabStatM.glIncome.addWidget(lbTitleIncome, k + 2, 2, 1, 1)
-            self.tabStatM.glOutcome.addWidget(lbTitleOutcome, k + 2, 2, 1, 1)
-            self.tabStatM.glCurrent.addWidget(lbTitleCurrent, k + 2, 0, 1, 1)
-            self.tabStatM.glMove.addWidget(lbTitleMoveIn, k + 2, 0, 1, 1)
-            self.tabStatM.glMove.addWidget(lbTitleMoveOut, k + 2, 2, 1, 1)
-
-            lbDataIncome = QLabel(self.tabStatM.gbIncome)
-            lbDataOutcome = QLabel(self.tabStatM.gbOutcome)
-            lbDataCurrent = QLabel(self.tabStatM.gbCurrent)
-            lbDataMoveOut = QLabel(self.tabStatM.gbMove)
-            lbDataMoveIn = QLabel(self.tabStatM.gbMove)
-
-            lbDataIncome.setAlignment(Qt.AlignCenter)
-            lbDataOutcome.setAlignment(Qt.AlignCenter)
-            lbDataCurrent.setAlignment(Qt.AlignCenter)
-            lbDataMoveOut.setAlignment(Qt.AlignCenter)
-            lbDataMoveIn.setAlignment(Qt.AlignCenter)
-
-            self.tabStatM.lbDataIncomeS.append(lbDataIncome)
-            self.tabStatM.lbDataOutcomeS.append(lbDataOutcome)
-            self.tabStatM.lbDataCurrent.append(lbDataCurrent)
-            self.tabStatM.lbDataMoveOut.append(lbDataMoveOut)
-            self.tabStatM.lbDataMoveIn.append(lbDataMoveIn)
-
-            self.tabStatM.glIncome.addWidget(lbDataIncome, k + 2, 3, 1, 1)
-            self.tabStatM.glOutcome.addWidget(lbDataOutcome, k + 2, 3, 1, 1)
-            self.tabStatM.glCurrent.addWidget(lbDataCurrent, k + 2, 1, 1, 1)
-            self.tabStatM.glMove.addWidget(lbDataMoveOut, k + 2, 1, 1, 1)
-            self.tabStatM.glMove.addWidget(lbDataMoveIn, k + 2, 3, 1, 1)
-
-        for k, txt in enumerate(in_txt):
-            lbTitleIncome = QLabel(txt, self.tabStatM.gbIncome)
-            lbTitleIncome.setAlignment(Qt.AlignCenter)
-            self.tabStatM.lbTitleIncomeT.append(lbTitleIncome)
-            self.tabStatM.glIncome.addWidget(lbTitleIncome, k + 2, 0, 1, 1)
-
-            lbDataIncome = QLabel(self.tabStatM.gbIncome)
-            lbDataIncome.setAlignment(Qt.AlignCenter)
-            self.tabStatM.lbDataIncomeT.append(lbDataIncome)
-            self.tabStatM.glIncome.addWidget(lbDataIncome, k + 2, 1, 1, 1)
-
-        for k, txt in enumerate(out_txt):
-            lbTitleOutcome = QLabel(txt, self.tabStatM.gbOutcome)
-            lbTitleOutcome.setAlignment(Qt.AlignCenter)
-            self.tabStatM.lbTitleOutcomeT.append(lbTitleOutcome)
-            self.tabStatM.glOutcome.addWidget(lbTitleOutcome, k + 2, 0, 1, 1)
-
-            lbDataOutcome = QLabel(self.tabStatM.gbOutcome)
-            lbDataOutcome.setAlignment(Qt.AlignCenter)
-            self.tabStatM.lbDataOutcomeT.append(lbDataOutcome)
-            self.tabStatM.glOutcome.addWidget(lbDataOutcome, k + 2, 1, 1, 1)
-
-        for wid in self.__sum_labels:
-            wid.setText('')
-
-        self.tabStatM.cbMonth.currentTextChanged.connect(self.__set_month)
-
-    # this func is based from stackoverflow question 1263451
-    def _set_save_and_stattype(func):  # pylint: disable=no-self-argument
-        def inner(self, *args, **kwargs):
-            # pylint: disable=protected-access, redefined-outer-name
-            res = func(self, *args, **kwargs)
-            self.__saved = False
-            self.__set_stat_type()
-            return res
-        return inner
-
-    @_set_save_and_stattype
-    def __change_ord(self):
-        pass
-
-    @_set_save_and_stattype
-    def __add_source(self):
-        checked = bool(self.tabCate.gbSrc.chk.checkState())
-        self.__data.sources.add_data(checked, self.tabCate.gbSrc.lnAdd.text())
-
-    @_set_save_and_stattype
-    def __del_source(self):
-        self.__data.sources.del_at(self.tabCate.gbSrc.cbDel.currentIndex())
-
-    @_set_save_and_stattype
-    def __add_in(self):
-        self.__data.in_type.add_data(self.tabCate.gbIn.lnAdd.text())
-
-    @_set_save_and_stattype
-    def __del_in(self):
-        self.__data.in_type.del_at(self.tabCate.gbIn.cbDel.currentIndex())
-
-    @_set_save_and_stattype
-    def __add_out(self):
-        checked = bool(self.tabCate.gbOut.chk.checkState())
-        self.__data.out_type.add_data(checked, self.tabCate.gbOut.lnAdd.text())
-
-    @_set_save_and_stattype
-    def __del_out(self):
-        self.__data.out_type.del_at(self.tabCate.gbOut.cbDel.currentIndex())
-
-    def __set_type(self, index):
-        if index == 2:
-            self.tabData.lbDetail.setText('이동처')
-        else:
-            self.tabData.lbDetail.setText('상세')
-
-        self.tabData.cbDetail.setModel(self.__data.list_detail[index])
-
     def __load_as(self):
         if not self.__saved:
             response = QMessageBox.warning(
@@ -774,7 +868,7 @@ class MainWin(QMainWindow, Ui_MainWin):
 
                 self.__data.load_data(data)
 
-                self.__set_stat_type()
+                self.tabStatM.set_stat_type()
             except Exception:  # pylint: disable=broad-except
                 msgbox = QMessageBox(
                     QMessageBox.Warning, '재시도',
@@ -789,7 +883,7 @@ class MainWin(QMainWindow, Ui_MainWin):
             else:
                 self.__last_file = file_path
                 self.__saved = True
-                self.__resize()
+                self.tabData.resize()
                 self.statusbar.showMessage('불러오기 성공', timeout=2000)
                 break
 
