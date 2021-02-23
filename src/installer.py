@@ -86,7 +86,7 @@ class Installer:
 
         self.__screen.addstr(1, 2, 'This program needs these packages:')
         self.__screen.addstr(2, 2, ' '.join(self.__to_install))
-        self.__screen.addstr(3, 2, 'Install packages? (y/n)')
+        self.__screen.addstr(7, 2, 'Install packages? (y/n)')
         self.__screen.refresh()
 
         key = self.__screen.getkey()
@@ -101,8 +101,8 @@ class Installer:
             elif key == 'n':
                 return 1
             else:
-                self.__screen.addstr(3, 2, 'Wrong input            ')
-                self.__screen.addstr(4, 2, 'Install packages? (y/n)')
+                self.__screen.addstr(7, 2, 'Wrong input            ')
+                self.__screen.addstr(8, 2, 'Install packages? (y/n)')
                 key = self.__screen.getkey()
 
     def __progress(self):
