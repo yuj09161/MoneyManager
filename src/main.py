@@ -5,12 +5,12 @@ from PySide6.QtWidgets import (
 )
 
 import os
-import json
 import io
+import json
+import argparse
 import datetime
 import threading
 import traceback
-
 import ftplib
 
 from UI import (
@@ -1080,20 +1080,18 @@ class MainWin(QMainWindow, Ui_MainWin):
                 event.accept()
 
 
-if __name__ == '__main__':
-    import argparse
-
+def main():
     parser = argparse.ArgumentParser()
-
     parser.add_argument(
         'file_name', help='Path of file', nargs='?', default=''
     )
-
     args = parser.parse_args()
 
     app = QApplication()
-
     main_win = MainWin(args.file_name)
     main_win.show()
-
     app.exec_()
+
+
+if __name__ == '__main__':
+    main()
