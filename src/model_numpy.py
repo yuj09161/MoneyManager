@@ -23,7 +23,7 @@ class MaxDataCountError(Exception):
 
 
 class ComboData(QStandardItemModel):
-    order_changed = Signal()
+    orderChanged = Signal()
 
     def __init__(self, parent=None):
         super().__init__(0, 0, parent)
@@ -83,6 +83,9 @@ class ComboData(QStandardItemModel):
     def get_txt_s(self):
         return [t for n, t in sorted(self._data)]
 
+    def get_at_index(self, index):
+        return self._data[index][1]
+
     # get raw data (for save/export)
     def get_raw(self):
         return self._data
@@ -106,6 +109,11 @@ class ComboData(QStandardItemModel):
             self.appendRow(self.__item(txt))
 
     @_bypass_ordchange
+    def set_index(self, index, value):
+        self._data[index] = (self._data[index][0], value)
+        self.setItem(index, QStandardItem(value))
+
+    @_bypass_ordchange
     def del_no(self, no):
         self.del_index(self.get_no_index()[no])
 
@@ -120,10 +128,11 @@ class ComboData(QStandardItemModel):
             for k in range(self.rowCount()):
                 items.append(self.item(k).text())
             self._data.sort(key=lambda x: items.index(x[1]))
-            self.order_changed.emit()
+            self.orderChanged.emit()
 
 
 class ComboDataChk(ComboData):
+    # pylint: disable=arguments-differ
     __prefix = '* '
 
     def get_chk_no(self):
@@ -147,9 +156,19 @@ class ComboDataChk(ComboData):
             for i, (n, t) in enumerate(self._data)
         }
 
-    def add_data(self, chk, data):  # pylint: disable=arguments-differ
-        __prefix = self.__prefix if chk else ''
+    def get_at_index(self, index):
+        text = self._data[index][1]
+        if text.startswith('* '):
+            return True, text.replace('* ', '')
+        else:
+            return False, text
+
+    def add_data(self, checked, data):
+        __prefix = self.__prefix if checked else ''
         super().add_data(__prefix + data)
+
+    def set_index(self, index, checked, value):
+        super().set_index(index, ('* ' if checked else '') + value)
 
 
 class Data(QStandardItemModel):
@@ -509,21 +528,12 @@ class Stat_Data(QStandardItemModel):
         self.__in_type = in_type
         self.__out_type = out_type
 
-        if sources:
-            sources_cnt = max(sources) + 1
-        else:
-            sources_cnt = 0
-        if in_type:
-            in_cnt = max(in_type) + 1
-        else:
-            in_cnt = 0
-        if out_type:
-            out_cnt = max(out_type) + 1
-        else:
-            out_cnt = 0
+        sources_cnt = (max(sources) + 1) if sources else 0
+        in_cnt = (max(in_type) + 1) if in_type else 0
+        out_cnt = (max(out_type) + 1) if out_type else 0
 
-        self.__cash_src = np.array(is_cash).tolist()
-        self.__ness_dst = np.array(is_ness).tolist()
+        self.__cash_src = [is_cash.get(n, False) for n in range(sources_cnt)]
+        self.__ness_dst = [is_ness.get(n, False) for n in range(out_cnt)]
 
         self.__data_form = [
             ('year', 'uint16'),
@@ -540,167 +550,163 @@ class Stat_Data(QStandardItemModel):
 
         self.__initalized = True
 
-    def set_data(self, data):
-        if self.__initalized:
-            self.__first_date = datetime.date.fromordinal(
-                data['date'].min() + STD_DAY
-            )
-            self.__last_date = datetime.date.fromordinal(
-                data['date'].max() + STD_DAY
-            )
-            first_y, first_m = self.__first_date.year, self.__first_date.month
-            last_y, last_m = self.__last_date.year, self.__last_date.month
+    def __caluclate_summary(self, d_c):
+        cash = d_c['current'][self.__cash_src].sum()
 
-            self.clear()
-            self.setHorizontalHeaderLabels(self.__header_text)
+        c2 = d_c['current'].sum()
+        c3 = d_c['income_src'].sum()
+        c4 = d_c['outcome_src'].sum()
+        c5 = d_c['income_typ'].sum()
+        c6 = d_c['outcome_typ'].sum()
+        c7 = d_c['move_in'].sum()
+        c8 = d_c['move_out'].sum()
 
-            self.months.clear()
-
-            self.__month_list = []
-            for m in range(first_m, 13):
-                self.__month_list.append((first_y, m))
-            for y in range(first_y + 1, last_y):
-                for m in range(1, 13):
-                    self.__month_list.append((y, m))
-            for m in range(1, last_m + 1):
-                self.__month_list.append((last_y, m))
-
-            self.__data = np.zeros((len(self.__month_list),), self.__data_form)
-
-            self.__real_month = []
-            last_current = self.__empty_arr[0]['current']
-            for k, (y, m) in enumerate(self.__month_list):
-                self.__data[k]['year'] = y
-                self.__data[k]['month'] = m
-
-                if m == 12:
-                    next_m = (y + 1, 1)
-                else:
-                    next_m = (y, m + 1)
-
-                first_date_m = datetime.date(y, m, 1).toordinal() - STD_DAY
-                last_date_m = datetime.date(*next_m, 1).toordinal() - STD_DAY
-                month_data = data[
-                    ((data['date'] >= first_date_m)
-                        & (data['date'] < last_date_m))
-                ]
-
-                if month_data.size:
-                    d_c = self.__data[k]
-
-                    for t in range(2):
-                        for s in self.__sources:
-                            type_sum = month_data[
-                                ((month_data['type'] == t)
-                                    & (month_data['src'] == s))
-                            ]['val'].sum()
-                            d_c[self.__type_col[t]][s] = type_sum
-
-                    # loop: in_type
-                    for d in self.__in_type:
-                        type_sum = month_data[
-                            ((month_data['type'] == 0)
-                                & (month_data['det'] == d))
-                        ]['val'].sum()
-                        d_c['income_typ'][d] = type_sum
-
-                    # loop: out_type
-                    for d in self.__out_type:
-                        type_sum = month_data[
-                            ((month_data['type'] == 1)
-                                & (month_data['det'] == d))
-                        ]['val'].sum()
-                        d_c['outcome_typ'][d] = type_sum
-
-                    # loop: sources
-                    for s in self.__sources:
-                        type_sum_o = month_data[
-                            ((month_data['type'] == 2)
-                                & (month_data['src'] == s))
-                        ]['val'].sum()
-                        d_c['move_out'][s] = type_sum_o
-
-                        type_sum_i = month_data[
-                            ((month_data['type'] == 2)
-                                & (month_data['det'] == s))
-                        ]['val'].sum()
-                        d_c['move_in'][s] = type_sum_i
-
-                        type_sum_f = month_data[
-                            ((month_data['type'] == 3)
-                                & (month_data['src'] == s))
-                        ]['val'].sum()
-                        d_c['current'][s] = (
-                            d_c['income_src'][s]
-                            + d_c['move_in'][s]
-                            - d_c['outcome_src'][s]
-                            - d_c['move_out'][s]
-                            + last_current[s]
-                            + type_sum_f
-                        )
-                    # end sources loop
-
-                    # calculate summary
-                    cash = d_c['current'][self.__cash_src].sum()
-
-                    c2 = d_c['current'].sum()
-                    c3 = d_c['income_src'].sum()
-                    c4 = d_c['outcome_src'].sum()
-                    c5 = d_c['income_typ'].sum()
-                    c6 = d_c['outcome_typ'].sum()
-                    c7 = d_c['move_in'].sum()
-                    c8 = d_c['move_out'].sum()
-
-                    if c3 != c5 or c4 != c6 or c7 != c8:
-                        raise ValueError
-                    else:
-                        if not any((c3, c4, c7)):
-                            self.appendRow(arr_to_qitem(
-                                ('최초', c2, cash, 0, 0, 0, 0)
-                            ))
-                        else:
-                            self.appendRow(arr_to_qitem(
-                                (f'{y}-{m}', c2, cash, c3 - c4, c3, c4, c7)
-                            )
-                            )
-                        last_current = d_c['current']
-                        self.__real_month.append(f'{y}-{m}')
-                else:
-                    self.__data[k]['current'] = last_current.copy()
-
-            self.months.set_data(
-                list((k, x) for k, x in enumerate(['-'] + self.__real_month))
-            )
+        if c3 != c5 or c4 != c6 or c7 != c8:
+            raise ValueError
         else:
+            # sum of (current, cash, income, outcome, net, move)
+            return c2, cash, c3, c4, c3-c4, c7  # noqa: E226
+
+    def set_data(self, data):
+        if not self.__initalized:
             raise NotInitalizedError
+
+        self.__first_date = datetime.date.fromordinal(
+            data['date'].min() + STD_DAY
+        )
+        self.__last_date = datetime.date.fromordinal(
+            data['date'].max() + STD_DAY
+        )
+        first_y, first_m = self.__first_date.year, self.__first_date.month
+        last_y, last_m = self.__last_date.year, self.__last_date.month
+
+        self.clear()
+        self.setHorizontalHeaderLabels(self.__header_text)
+
+        self.months.clear()
+
+        self.__month_list = []
+        for m in range(first_m, 13):
+            self.__month_list.append((first_y, m))
+        for y in range(first_y + 1, last_y):
+            for m in range(1, 13):
+                self.__month_list.append((y, m))
+        for m in range(1, last_m + 1):
+            self.__month_list.append((last_y, m))
+
+        self.__data = np.zeros((len(self.__month_list),), self.__data_form)
+
+        self.__real_month = []
+        last_current = self.__empty_arr[0]['current']
+        for k, (y, m) in enumerate(self.__month_list):
+            self.__data[k]['year'] = y
+            self.__data[k]['month'] = m
+
+            if m == 12:
+                next_m = (y + 1, 1)
+            else:
+                next_m = (y, m + 1)
+
+            first_date_m = datetime.date(y, m, 1).toordinal() - STD_DAY
+            last_date_m = datetime.date(*next_m, 1).toordinal() - STD_DAY
+            month_data = data[(
+                (data['date'] >= first_date_m) & (data['date'] < last_date_m)
+            )]
+
+            if not month_data.size:
+                self.__data[k]['current'] = last_current.copy()
+                continue
+
+            d_c = self.__data[k]
+
+            # loop: in_type
+            for d in self.__in_type:
+                d_c['income_typ'][d] = month_data[(
+                    (month_data['type'] == 0) & (month_data['det'] == d)
+                )]['val'].sum()
+
+            # loop: out_type
+            for d in self.__out_type:
+                d_c['outcome_typ'][d] = month_data[(
+                    (month_data['type'] == 1) & (month_data['det'] == d)
+                )]['val'].sum()
+
+            # loop: sources
+            for s in self.__sources:
+                # income
+                sum_in_src = month_data[(
+                    (month_data['type'] == 0) & (month_data['src'] == s)
+                )]['val'].sum()
+                d_c['income_src'][s] = sum_in_src
+
+                # outcome
+                sum_out_src = month_data[(
+                    (month_data['type'] == 1) & (month_data['src'] == s)
+                )]['val'].sum()
+                d_c['outcome_src'][s] = sum_out_src
+
+                # move: out
+                sum_mv_out = month_data[(
+                    (month_data['type'] == 2) & (month_data['src'] == s)
+                )]['val'].sum()
+                d_c['move_out'][s] = sum_mv_out
+
+                # move: in
+                sum_mv_in = month_data[(
+                    (month_data['type'] == 2) & (month_data['det'] == s)
+                )]['val'].sum()
+                d_c['move_in'][s] = sum_mv_in
+
+                # first
+                sum_f = month_data[(
+                    (month_data['type'] == 3) & (month_data['src'] == s)
+                )]['val'].sum()
+
+                d_c['current'][s] = (
+                    sum_in_src.astype(np.int64)
+                    + sum_mv_in
+                    - sum_out_src
+                    - sum_mv_out
+                    + last_current[s]
+                    + sum_f
+                )
+            # end sources loop
+
+            # calculate summary
+            current, cash, income, outcome, net, move\
+                = self.__caluclate_summary(d_c)
+
+            if not any((income, outcome, move)):
+                self.appendRow(arr_to_qitem(
+                    ('최초', current, cash, '-', '-', '-', '-')
+                ))
+            else:
+                self.appendRow(arr_to_qitem((
+                    f'{y}-{m}', current, cash,
+                    net, income, outcome, move
+                )))
+            last_current = d_c['current']
+            self.__real_month.append(f'{y}-{m}')
+
+        self.months.set_data(
+            list((k, x) for k, x in enumerate(['-'] + self.__real_month))
+        )
 
     def get_raw(self):
         return self.__data
 
     def get_month(self, month):
         if month:
-            index = self.__month_list.index(month)
-            d_c = self.__data[index].copy()
+            d_c = self.__data[self.__month_list.index(month)].copy()
 
-            cash = d_c['current'][self.__cash_src].sum()
+            current, cash, income, outcome, net, move\
+                = self.__caluclate_summary(d_c)
             ness = d_c['outcome_typ'][self.__ness_dst].sum()
 
-            c2 = d_c['current'].sum()
-            c3 = d_c['income_src'].sum()
-            c4 = d_c['outcome_src'].sum()
-            c5 = d_c['income_typ'].sum()
-            c6 = d_c['outcome_typ'].sum()
-            c7 = d_c['move_in'].sum()
-            c8 = d_c['move_out'].sum()
-
-            if c3 != c5 or c4 != c6 or c7 != c8:
-                raise ValueError
-            else:
-                return (
-                    d_c, map(
-                        str, (c3, c4, c2, cash, c7, c3 - c4, ness, c4 - ness)
-                    )
-                )
+            return (d_c, map(str, (
+                income, outcome, current, cash, move,
+                net, ness, outcome - ness
+            )))
 
     def add_data(self, data):
         d = datetime.date.fromordinal(data[0] + STD_DAY)
@@ -751,27 +757,18 @@ class Stat_Data(QStandardItemModel):
                     d_c['current'][src] -= val
 
             # recalculate summary
-            cash = d_c['current'][self.__cash_src].sum()
+            current, cash, income, outcome, net, move\
+                = self.__caluclate_summary(d_c)
 
-            c2 = d_c['current'].sum()
-            c3 = d_c['income_src'].sum()
-            c4 = d_c['outcome_src'].sum()
-            c5 = d_c['income_typ'].sum()
-            c6 = d_c['outcome_typ'].sum()
-            c7 = d_c['move_in'].sum()
-            c8 = d_c['move_out'].sum()
-
-            if c3 != c5 or c4 != c6 or c7 != c8:
-                raise ValueError
+            items = arr_to_qitem((
+                f'{m_c[0]}-{m_c[1]}', current, cash,
+                net, income, outcome, move
+            ))
+            if insert:
+                self.insertRow(index2, items)
             else:
-                items = arr_to_qitem(
-                    (f'{m_c[0]}-{m_c[1]}', c2, cash, c3 - c4, c3, c4, c7)
-                )
-                if insert:
-                    self.insertRow(index2, items)
-                else:
-                    for k, item in enumerate(items):
-                        self.setItem(index2, k, item)
+                for k, item in enumerate(items):
+                    self.setItem(index2, k, item)
         else:
             '''
             if d<self.__first_date:
@@ -851,24 +848,15 @@ class Stat_Data(QStandardItemModel):
                     d_c['current'][src] += val
 
             # recalculate summary
-            cash = d_c['current'][self.__cash_src].sum()
+            current, cash, income, outcome, net, move\
+                = self.__caluclate_summary(d_c)
 
-            c2 = d_c['current'].sum()
-            c3 = d_c['income_src'].sum()
-            c4 = d_c['outcome_src'].sum()
-            c5 = d_c['income_typ'].sum()
-            c6 = d_c['outcome_typ'].sum()
-            c7 = d_c['move_in'].sum()
-            c8 = d_c['move_out'].sum()
-
-            if c3 != c5 or c4 != c6 or c7 != c8:
-                raise ValueError
-            else:
-                items = arr_to_qitem(
-                    (f'{m_c[0]}-{m_c[1]}', c2, cash, c3 - c4, c3, c4, c7)
-                )
-                for k, item in enumerate(items):
-                    self.setItem(index2, k, item)
+            items = arr_to_qitem((
+                f'{m_c[0]}-{m_c[1]}', current, cash,
+                net, income, outcome, move
+            ))
+            for k, item in enumerate(items):
+                self.setItem(index2, k, item)
 
     @property
     def initalized(self):

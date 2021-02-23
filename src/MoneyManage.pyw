@@ -1,6 +1,6 @@
 from PySide6.QtCore import Signal, Qt
 from PySide6.QtWidgets import (
-    QMainWindow, QApplication, QWidget,
+    QMainWindow, QApplication, QWidget, QGroupBox,
     QLabel, QTreeView, QMessageBox, QFileDialog
 )
 
@@ -15,7 +15,8 @@ import ftplib
 
 from UI import (
     Ui_Txt, Ui_Info, Ui_Pg, Ui_Login, Ui_MainWin,
-    Ui_TabCate, Ui_TabData, Ui_TabStatS, Ui_TabStatM
+    Ui_TabCate, Ui_TabData, Ui_TabStatS, Ui_TabStatM,
+    Ui_GbAddDelCate, Ui_GbAddDelChk
 )
 from model_numpy import Data, Stat_Data
 
@@ -171,13 +172,155 @@ class Login(QMainWindow, Ui_Login):
             signal.emit(2, {}, traceback.format_exc())
 
 
+class GbCateBase(QGroupBox):
+    def __init__(self, parent, model, functions):
+        super().__init__(parent)
+
+        self._model = model
+        self._editing_row = -1
+
+        self._set_saved = functions['set_saved']
+        self._set_stat_type = functions['set_stat_type']
+
+        model.orderChanged.connect(self._change_ord)
+        # self.lvOrd.doubleClicked.connect(self._remove)
+
+    @staticmethod
+    def _set_save_and_stat_type(func):
+        # pylint: disable=redefined-outer-name, protected-access
+        def base(self, *args):
+            func(self, *args)
+            self._set_saved(False)
+            self._set_stat_type()
+        return base
+
+    def __set_save_and_stat_type(func):  # pylint: disable=no-self-argument
+        # pylint: disable=redefined-outer-name, protected-access
+        def base(self, *args):
+            func(self, *args)
+            self._set_saved(False)
+            self._set_stat_type()
+        return base
+
+    @__set_save_and_stat_type
+    def _change_ord(self):
+        pass
+
+    # @__set_save_and_stat_type
+    # def _remove(self, index):
+        # self._model.del_index(index.row())
+        # raise NotImplementedError
+
+    def _end_edit(self):
+        assert self._editing_row > -1
+        self._editing_row = -1
+        self.btnAdd.show()
+        self.btnApply.hide()
+        self.btnCancel.hide()
+        self.lnAdd.setText('')
+
+
+class GbAddDelCate(GbCateBase, Ui_GbAddDelCate):
+    def __init__(self, parent, model, functions):
+        super().__init__(parent, model, functions)
+        self.setupUi(self)
+
+        self.btnAdd.clicked.connect(self.__add)
+        self.lvOrd.selectionChanged = self.__start_edit
+        self.btnApply.clicked.connect(self.__apply)
+        self.btnCancel.clicked.connect(self._end_edit)
+
+    @GbCateBase._set_save_and_stat_type
+    def __add(self):
+        self._model.add_data(self.lnAdd.text())
+
+    def __start_edit(self, selected, _):
+        indexes = selected.indexes()
+        if indexes:
+            self.btnAdd.hide()
+            self.btnApply.show()
+            self.btnCancel.show()
+
+            row_no = indexes[0].row()
+            self._editing_row = row_no
+            self.lnAdd.setText(self._model.get_at_index(row_no))
+
+    @GbCateBase._set_save_and_stat_type
+    def __apply(self):
+        assert self._editing_row > -1
+        text = self.lnAdd.text()
+        if text.startswith('* '):
+            QMessageBox.warning(self, '경고', '올바르지 않은 이름')
+            return
+        self._model.set_index(self._editing_row, text)
+        self._end_edit()
+
+
+class GbAddDelChk(GbCateBase, Ui_GbAddDelChk):
+    def __init__(self, parent, model, functions, chk_txt):
+        super().__init__(parent, model, functions)
+        self.setupUi(self, chk_txt)
+
+        model.orderChanged.connect(self._change_ord)
+        self.btnAdd.clicked.connect(self.__add)
+        self.lvOrd.selectionChanged = self.__start_edit
+        self.btnApply.clicked.connect(self.__apply)
+        self.btnCancel.clicked.connect(self._end_edit)
+
+    @GbCateBase._set_save_and_stat_type
+    def __add(self):
+        self._model.add_data(bool(self.chk.checkState()), self.lnAdd.text())
+
+    def __start_edit(self, selected, _):
+        indexes = selected.indexes()
+        if indexes:
+            self.btnAdd.hide()
+            self.btnApply.show()
+            self.btnCancel.show()
+
+            row_no = indexes[0].row()
+            self._editing_row = row_no
+            checked, text = self._model.get_at_index(row_no)
+            self.chk.setChecked(checked)
+            self.lnAdd.setText(text)
+
+    def _end_edit(self):
+        super()._end_edit()
+        self.chk.setChecked(False)
+
+    @GbCateBase._set_save_and_stat_type
+    def __apply(self):
+        assert self._editing_row > -1
+        text = self.lnAdd.text()
+        if text.startswith('* '):
+            QMessageBox.warning(self, '경고', '올바르지 않은 이름')
+            return
+        self._model.set_index(
+            self._editing_row,
+            self.chk.isChecked(),
+            text
+        )
+        self._end_edit()
+
+
 class TabCate(QWidget, Ui_TabCate):
     def __init__(self, parent, models, functions):
         super().__init__(parent)
-        self.setupUi(self)
 
         self.__data = models['data']
         self.__stat = models['stat']
+
+        self.gbSrc = GbAddDelChk(
+            self, self.__data.sources, functions, "현금성"
+        )
+        self.gbIn = GbAddDelCate(
+            self, self.__data.in_type, functions
+        )
+        self.gbOut = GbAddDelChk(
+            self, self.__data.out_type, functions, "필수?"
+        )
+
+        self.setupUi(self)
 
         self.__set_saved = functions['set_saved']
         self.__set_stat_type = functions['set_stat_type']
@@ -186,55 +329,6 @@ class TabCate(QWidget, Ui_TabCate):
         self.gbSrc.lvOrd.setModel(self.__data.sources)
         self.gbIn.lvOrd.setModel(self.__data.in_type)
         self.gbOut.lvOrd.setModel(self.__data.out_type)
-
-        # connect signals
-        self.gbSrc.btnAdd.clicked.connect(self.__add_source)
-        self.gbIn.btnAdd.clicked.connect(self.__add_in)
-        self.gbOut.btnAdd.clicked.connect(self.__add_out)
-
-        self.__data.sources.order_changed.connect(self.__change_ord)
-        self.__data.in_type.order_changed.connect(self.__change_ord)
-        self.__data.out_type.order_changed.connect(self.__change_ord)
-
-    # this func is based from stackoverflow question 1263451
-    def _set_save_and_stattype(func):  # pylint: disable=no-self-argument
-        def inner(self, *args, **kwargs):
-            # pylint: disable=protected-access, redefined-outer-name
-            res = func(self, *args, **kwargs)
-            self.__set_saved(False)
-            self.__set_stat_type()
-            return res
-        return inner
-
-    @_set_save_and_stattype
-    def __change_ord(self):
-        pass
-
-    @_set_save_and_stattype
-    def __add_source(self):
-        checked = bool(self.gbSrc.chk.checkState())
-        self.__data.sources.add_data(checked, self.gbSrc.lnAdd.text())
-
-    @_set_save_and_stattype
-    def __del_source(self):
-        self.__data.sources.del_at(self.gbSrc.cbDel.currentIndex())
-
-    @_set_save_and_stattype
-    def __add_in(self):
-        self.__data.in_type.add_data(self.gbIn.lnAdd.text())
-
-    @_set_save_and_stattype
-    def __del_in(self):
-        self.__data.in_type.del_at(self.gbIn.cbDel.currentIndex())
-
-    @_set_save_and_stattype
-    def __add_out(self):
-        checked = bool(self.gbOut.chk.checkState())
-        self.__data.out_type.add_data(checked, self.gbOut.lnAdd.text())
-
-    @_set_save_and_stattype
-    def __del_out(self):
-        self.__data.out_type.del_at(self.gbOut.cbDel.currentIndex())
 
 
 class TabData(QWidget, Ui_TabData):
@@ -334,8 +428,7 @@ class TabData(QWidget, Ui_TabData):
             self.__set_saved(False)
 
     def __start_edit(self, sel, _):
-        data_no = sel.indexes()[0]
-        row_no = data_no.row()
+        row_no = sel.indexes()[0].row()
 
         type_ = self.__data.get_at(row_no)[1]
 
@@ -357,7 +450,7 @@ class TabData(QWidget, Ui_TabData):
             self.btnCancel.show()
             self.btnAddData.clicked.disconnect()
             self.btnAddData.clicked.connect(
-                lambda: self.__edit_data(data_no, date)
+                lambda: self.__edit_data(row_no, date)
             )
 
     def __end_edit(self):
@@ -373,9 +466,7 @@ class TabData(QWidget, Ui_TabData):
         self.btnAddData.clicked.disconnect()
         self.btnAddData.clicked.connect(self.__add_data)
 
-    def __edit_data(self, data_no, priv_date):
-        row_no = data_no.row()
-
+    def __edit_data(self, row_no, priv_date):
         # delete stat
         data = self.__data.get_at(row_no)
         self.__stat.del_data(data)
@@ -448,9 +539,6 @@ class TabStatM(QWidget, Ui_TabStatM):
         self.__stat = models['stat']
 
         self.__refresh = True
-        self.__title_labels = None
-        self.__data_labels = None
-        self.__sum_labels = None
 
         # set model
         self.cbMonth.setModel(self.__stat.months)
@@ -472,13 +560,10 @@ class TabStatM(QWidget, Ui_TabStatM):
                 in_ni = self.__data.in_type.get_index_no()
                 out_ni = self.__data.out_type.get_index_no()
 
-                data_changer = (
-                    src_ni, src_ni, src_ni, in_ni, out_ni, src_ni, src_ni
-                )
                 for wids, type_, changer in zip(
-                        self.__data_labels, self.__stat.data_name[2:],
-                        data_changer
-                        ):
+                    self.__data_labels, self.__stat.data_name[2:],
+                    (src_ni, src_ni, src_ni, in_ni, out_ni, src_ni, src_ni)
+                ):
                     for b, wid in enumerate(wids):
                         wid.setText(str(data[type_][changer[b]]))
 
@@ -492,14 +577,15 @@ class TabStatM(QWidget, Ui_TabStatM):
                 wid.setText('')
 
     def set_stat_type(self):
+        # pylint: disable=attribute-defined-outside-init
         try:
             self.cbMonth.currentTextChanged.disconnect()
         except Exception:  # pylint: disable=broad-except
             pass
 
-        grids = (self.glCurrent, self.glIncome,
-                 self.glOutcome, self.glMove)
-        for grid in grids:
+        for grid in (
+            self.glCurrent, self.glIncome, self.glOutcome, self.glMove
+        ):
             for k in reversed(range(grid.count())):
                 wid = grid.itemAt(k).widget()
                 if not wid.objectName():
@@ -507,27 +593,16 @@ class TabStatM(QWidget, Ui_TabStatM):
 
         data = self.__data.get_data()
 
-        src_no = self.__data.sources.get_no()
-        in_no = self.__data.in_type.get_no()
-        out_no = self.__data.out_type.get_no()
-
-        src_txt = self.__data.sources.get_txt()
-        in_txt = self.__data.in_type.get_txt()
-        out_txt = self.__data.out_type.get_txt()
-
-        is_cash = self.__data.sources.get_chk_no()
-        is_ness = self.__data.out_type.get_chk_no()
-
-        self.__stat.set_type(src_no, in_no, out_no, is_cash, is_ness)
+        self.__stat.set_type(
+            self.__data.sources.get_no(),  # source (numbers)
+            self.__data.in_type.get_no(),  # income (numbers)
+            self.__data.out_type.get_no(),  # outcome (numbers)
+            self.__data.sources.get_no_chk(),  # is cash? (no. -> chk)
+            self.__data.out_type.get_no_chk()  # is ness outcome? (no. -> chk)
+        )
         self.__stat.set_data(data)
 
         # generate stat labels
-        self.lbTitleIncomeS = []
-        self.lbTitleOutcomeS = []
-        self.lbTitleCurrent = []
-        self.lbTitleMoveIn = []
-        self.lbTitleMoveOut = []
-
         self.lbDataIncomeS = []
         self.lbDataOutcomeS = []
         self.lbDataCurrent = []
@@ -540,15 +615,6 @@ class TabStatM(QWidget, Ui_TabStatM):
         self.lbTitleOutcomeT = []
         self.lbDataOutcomeT = []
 
-        self.__title_labels = (
-            self.lbTitleCurrent,
-            self.lbTitleIncomeS,
-            self.lbTitleOutcomeS,
-            self.lbTitleIncomeT,
-            self.lbTitleOutcomeT,
-            self.lbTitleMoveIn,
-            self.lbTitleMoveOut
-        )
         self.__data_labels = (
             self.lbDataCurrent,
             self.lbDataIncomeS,
@@ -569,7 +635,7 @@ class TabStatM(QWidget, Ui_TabStatM):
             self.lbOut2
         )
 
-        for k, txt in enumerate(src_txt):
+        for k, txt in enumerate(self.__data.sources.get_txt()):
             lbTitleIncome = QLabel(txt, self.gbIncome)
             lbTitleOutcome = QLabel(txt, self.gbOutcome)
             lbTitleCurrent = QLabel(txt, self.gbCurrent)
@@ -581,12 +647,6 @@ class TabStatM(QWidget, Ui_TabStatM):
             lbTitleCurrent.setAlignment(Qt.AlignCenter)
             lbTitleMoveIn.setAlignment(Qt.AlignCenter)
             lbTitleMoveOut.setAlignment(Qt.AlignCenter)
-
-            self.lbTitleIncomeS.append(lbTitleIncome)
-            self.lbTitleOutcomeS.append(lbTitleOutcome)
-            self.lbTitleCurrent.append(lbTitleCurrent)
-            self.lbTitleMoveIn.append(lbTitleMoveIn)
-            self.lbTitleMoveOut.append(lbTitleMoveOut)
 
             self.glIncome.addWidget(lbTitleIncome, k + 2, 2, 1, 1)
             self.glOutcome.addWidget(lbTitleOutcome, k + 2, 2, 1, 1)
@@ -618,7 +678,7 @@ class TabStatM(QWidget, Ui_TabStatM):
             self.glMove.addWidget(lbDataMoveOut, k + 2, 1, 1, 1)
             self.glMove.addWidget(lbDataMoveIn, k + 2, 3, 1, 1)
 
-        for k, txt in enumerate(in_txt):
+        for k, txt in enumerate(self.__data.in_type.get_txt()):
             lbTitleIncome = QLabel(txt, self.gbIncome)
             lbTitleIncome.setAlignment(Qt.AlignCenter)
             self.lbTitleIncomeT.append(lbTitleIncome)
@@ -629,7 +689,7 @@ class TabStatM(QWidget, Ui_TabStatM):
             self.lbDataIncomeT.append(lbDataIncome)
             self.glIncome.addWidget(lbDataIncome, k + 2, 1, 1, 1)
 
-        for k, txt in enumerate(out_txt):
+        for k, txt in enumerate(self.__data.out_type.get_txt()):
             lbTitleOutcome = QLabel(txt, self.gbOutcome)
             lbTitleOutcome.setAlignment(Qt.AlignCenter)
             self.lbTitleOutcomeT.append(lbTitleOutcome)

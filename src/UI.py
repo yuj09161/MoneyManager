@@ -208,35 +208,44 @@ class Ui_Pg:
     # setupUi
 
 
-class GbAddDelCate(QGroupBox):
-    def __init__(self, parent):
-        super().__init__(parent)
-
-        self.vlMain = QVBoxLayout(self)
+class Ui_GbAddDelCate:
+    def setupUi(self, GbAddDelCate):
+        self.vlMain = QVBoxLayout(GbAddDelCate)
         self.vlMain.setObjectName(u"vlMain")
 
-        self.lvOrd = QListView(self)
+        self.lvOrd = QListView(GbAddDelCate)
+        self.lvOrd.setEditTriggers(QListView.NoEditTriggers)
         self.lvOrd.setDragDropMode(QListView.InternalMove)
         self.vlMain.addWidget(self.lvOrd)
 
-        self.widAdd = QWidget(self)
+        self.widAdd = QWidget(GbAddDelCate)
         self.widAdd.setObjectName(u"widAdd")
         sizePolicy_EP.setHeightForWidth(self.widAdd.sizePolicy().hasHeightForWidth())
         self.widAdd.setSizePolicy(sizePolicy_EP)
 
-        self.glAdd = QGridLayout(self.widAdd)
-        self.glAdd.setObjectName(u"glAdd")
-        self.glAdd.setContentsMargins(0, 7, 0, 7)
+        self.glEdit = QGridLayout(self.widAdd)
+        self.glEdit.setObjectName(u"glEdit")
+        self.glEdit.setContentsMargins(0, 7, 0, 7)
 
         self.lnAdd = QLineEdit(self.widAdd)
         self.lnAdd.setObjectName(u"lnAdd")
         self.lnAdd.setAlignment(Qt.AlignCenter)
         self.lnAdd.setMaxLength(10)
-        self.glAdd.addWidget(self.lnAdd, 0, 0, 1, 1)
+        self.glEdit.addWidget(self.lnAdd, 0, 0, 1, 1)
 
         self.btnAdd = QPushButton(self.widAdd)
         self.btnAdd.setObjectName(u"btnAdd")
-        self.glAdd.addWidget(self.btnAdd, 0, 1, 2, 1)
+        self.glEdit.addWidget(self.btnAdd, 0, 1, 1, 1)
+
+        self.btnApply = QPushButton(self.widAdd)
+        self.btnApply.setObjectName(u"btnApply")
+        self.btnApply.hide()
+        self.glEdit.addWidget(self.btnApply, 0, 1, 1, 1)
+
+        self.btnCancel = QPushButton(self.widAdd)
+        self.btnCancel.setObjectName(u"btnCancel")
+        self.btnCancel.hide()
+        self.glEdit.addWidget(self.btnCancel, 1, 1, 1, 1)
 
         self.vlMain.addWidget(self.widAdd)
 
@@ -244,18 +253,20 @@ class GbAddDelCate(QGroupBox):
 
     def retranslateUi(self):
         self.btnAdd.setText(QCoreApplication.translate("MoneyManage", u"\ucd94\uac00", None))
+        self.btnApply.setText(QCoreApplication.translate("MoneyManage", u"\uc218\uc815", None))
+        self.btnCancel.setText(QCoreApplication.translate("MoneyManage", u"\ucde8\uc18c", None))
 
 
-class GbAddDelChk(GbAddDelCate):
-    def __init__(self, parent, chk_txt=''):
-        super().__init__(parent)
+class Ui_GbAddDelChk(Ui_GbAddDelCate):
+    def setupUi(self, GbAddDelChk, chk_txt):  # pylint: disable=arguments-differ
+        super().setupUi(GbAddDelChk)
 
-        self.chk = QCheckBox(self)
-        self.glAdd.addWidget(self.chk, 1, 0, 1, 1)
+        self.chk = QCheckBox(GbAddDelChk)
+        self.glEdit.addWidget(self.chk, 1, 0, 1, 1)
 
-        self.retranslateUi_1(chk_txt)
+        self.glEdit.removeWidget(self.btnAdd)
+        self.glEdit.addWidget(self.btnAdd, 0, 1, 2, 1)
 
-    def retranslateUi_1(self, chk_txt):
         self.chk.setText(QCoreApplication.translate("MoneyManage", chk_txt, None))
 
 
@@ -265,24 +276,21 @@ class Ui_TabCate:
         self.glCate = QGridLayout(TabCate)
         self.glCate.setObjectName(u"glCate")
 
-        self.gbSrc = GbAddDelChk(TabCate, u"\ud604\uae08\uc131")
-        self.gbSrc.setObjectName(u"gbSrc")
-        self.glCate.addWidget(self.gbSrc, 0, 0, 1, 1)
+        TabCate.gbSrc.setObjectName(u"gbSrc")
+        self.glCate.addWidget(TabCate.gbSrc, 0, 0, 1, 1)
 
-        self.gbIn = GbAddDelCate(TabCate)
-        self.gbIn.setObjectName(u"gbIn")
-        self.glCate.addWidget(self.gbIn, 0, 1, 1, 1)
+        TabCate.gbIn.setObjectName(u"gbIn")
+        self.glCate.addWidget(TabCate.gbIn, 0, 1, 1, 1)
 
-        self.gbOut = GbAddDelChk(TabCate, u"\ud544\uc218\u003f")
-        self.gbOut.setObjectName(u"gbOut")
-        self.glCate.addWidget(self.gbOut, 0, 2, 1, 1)
+        TabCate.gbOut.setObjectName(u"gbOut")
+        self.glCate.addWidget(TabCate.gbOut, 0, 2, 1, 1)
 
-        self.retranslateUi()
+        self.retranslateUi(TabCate)
 
-    def retranslateUi(self):
-        self.gbSrc.setTitle(QCoreApplication.translate("MoneyManage", u"\uc6d0\ucc9c", None))
-        self.gbIn.setTitle(QCoreApplication.translate("MoneyManage", u"\uc218\uc785 \uc0c1\uc138", None))
-        self.gbOut.setTitle(QCoreApplication.translate("MoneyManage", u"\uc9c0\ucd9c \uc0c1\uc138(\uc0ac\uc6a9\ucc98)", None))
+    def retranslateUi(self, TabCate):
+        TabCate.gbSrc.setTitle(QCoreApplication.translate("MoneyManage", u"\uc6d0\ucc9c", None))
+        TabCate.gbIn.setTitle(QCoreApplication.translate("MoneyManage", u"\uc218\uc785 \uc0c1\uc138", None))
+        TabCate.gbOut.setTitle(QCoreApplication.translate("MoneyManage", u"\uc9c0\ucd9c \uc0c1\uc138(\uc0ac\uc6a9\ucc98)", None))
 
 
 class Ui_TabData:
@@ -393,7 +401,7 @@ class Ui_TabStatS:
 
         self.treeStatS = QTreeView(TabStatS)
         self.treeStatS.setObjectName(u"treeStatS")
-        self.treeStatS.setEditTriggers(QListView.NoEditTriggers)
+        self.treeStatS.setEditTriggers(QTreeView.NoEditTriggers)
         self.glSum.addWidget(self.treeStatS, 0, 0, 1, 1)
 
 
