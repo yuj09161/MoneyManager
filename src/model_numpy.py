@@ -210,8 +210,6 @@ class Data(QStandardItemModel):
         self.row_count = 0
 
     def load_data(self, data):
-        self.clear()
-
         self.__version = data['version']
 
         self.sources.set_data(data['sources'])
@@ -225,6 +223,22 @@ class Data(QStandardItemModel):
             raw_data = list(map(tuple, data['data']))
             self.__data = np.asarray(raw_data, self.__data_form)
 
+        self.refresh(self.__data)
+
+        if self.row_count < MAX_DATA_CNT:
+            self.__data = np.append(
+                np.asarray(raw_data, self.__data_form),
+                np.empty((MAX_DATA_CNT - self.row_count,), self.__data_form)
+            )
+
+    def refresh(self, data=None):
+        # clear view
+        self.clear()
+
+        # get data (to display)
+        if data is None:
+            data = self.__data[:self.row_count]
+
         # parse data & set data
         src_txt = self.sources.get_txt_s()
         in_txt = self.in_type.get_txt_s()
@@ -233,35 +247,35 @@ class Data(QStandardItemModel):
         # date
         dates = [
             datetime.date.fromordinal(x).isoformat()
-            for x in self.__data['date'] + STD_DAY
+            for x in data['date'] + STD_DAY
         ]
         self.appendColumn(arr_to_qitem(dates))
 
         # type, source, detail
-        shape = self.__data.shape
+        shape = data.shape
         types = np.zeros(shape, '<U12')
         dets = np.zeros(shape, '<U12')
         srcs = np.zeros(shape, '<U12')
 
         # parse type
         for type_num in range(4):
-            types[self.__data['type'] == type_num] = self.__type_text[type_num]
+            types[data['type'] == type_num] = self.__type_text[type_num]
 
         # parse detail
         for num, txt in enumerate(in_txt):
             dets[
-                (self.__data['type'] == 0) & (self.__data['det'] == num)
+                (data['type'] == 0) & (data['det'] == num)
             ] = txt
         for num, txt in enumerate(out_txt):
             dets[
-                (self.__data['type'] == 1) & (self.__data['det'] == num)
+                (data['type'] == 1) & (data['det'] == num)
             ] = txt
         for num, txt in enumerate(src_txt):
-            srcs[self.__data['src'] == num] = txt
+            srcs[data['src'] == num] = txt
             dets[
-                (self.__data['type'] == 2) & (self.__data['det'] == num)
+                (data['type'] == 2) & (data['det'] == num)
             ] = txt
-        dets[self.__data['type'] == 3] = '-'
+        dets[data['type'] == 3] = '-'
 
         self.appendColumn(arr_to_qitem(types))
         self.appendColumn(arr_to_qitem(srcs))
@@ -270,18 +284,12 @@ class Data(QStandardItemModel):
 
         # value, description
         self.appendColumn(arr_to_qitem(
-            self.__data['val'].astype('<U10').tolist()
+            data['val'].astype('<U10').tolist()
         ))
-        self.appendColumn(arr_to_qitem(self.__data['desc']))
+        self.appendColumn(arr_to_qitem(data['desc']))
         # end parser
 
         self.setHorizontalHeaderLabels(self.__header_text)
-
-        if self.row_count < MAX_DATA_CNT:
-            self.__data = np.append(
-                np.asarray(raw_data, self.__data_form),
-                np.empty((MAX_DATA_CNT - self.row_count,), self.__data_form)
-            )
 
     def save_data(self):
         data = {}

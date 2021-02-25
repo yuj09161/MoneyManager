@@ -181,6 +181,7 @@ class GbCateBase(QGroupBox):
 
         self._set_saved = functions['set_saved']
         self._set_stat_type = functions['set_stat_type']
+        self._refresh_data = functions['refresh_data']
 
         model.orderChanged.connect(self._change_ord)
         # self.lvOrd.doubleClicked.connect(self._remove)
@@ -192,6 +193,16 @@ class GbCateBase(QGroupBox):
             func(self, *args)
             self._set_saved(False)
             self._set_stat_type()
+        return base
+
+    @staticmethod
+    def _set_save_stat_type_and_refresh_data(func):
+        # pylint: disable=redefined-outer-name, protected-access
+        def base(self, *args):
+            func(self, *args)
+            self._set_saved(False)
+            self._set_stat_type()
+            self._refresh_data()
         return base
 
     def __set_save_and_stat_type(func):  # pylint: disable=no-self-argument
@@ -245,7 +256,7 @@ class GbAddDelCate(GbCateBase, Ui_GbAddDelCate):
             self._editing_row = row_no
             self.lnAdd.setText(self._model.get_at_index(row_no))
 
-    @GbCateBase._set_save_and_stat_type
+    @GbCateBase._set_save_stat_type_and_refresh_data
     def __apply(self):
         assert self._editing_row > -1
         text = self.lnAdd.text()
@@ -288,7 +299,7 @@ class GbAddDelChk(GbCateBase, Ui_GbAddDelChk):
         super()._end_edit()
         self.chk.setChecked(False)
 
-    @GbCateBase._set_save_and_stat_type
+    @GbCateBase._set_save_stat_type_and_refresh_data
     def __apply(self):
         assert self._editing_row > -1
         text = self.lnAdd.text()
@@ -361,6 +372,10 @@ class TabData(QWidget, Ui_TabData):
     def resize(self):
         for k in range(0, self.__data.column_count):
             self.treeData.resizeColumnToContents(k)
+
+    def refresh_data(self):
+        self.__data.refresh()
+        self.resize()
 
     def __add_data(self):
         try:
@@ -754,6 +769,11 @@ class MainWin(QMainWindow, Ui_MainWin):
         }
 
         self.tabData = TabData(self, models, functions)
+
+        functions |= {
+            'refresh_data': self.tabData.refresh_data
+        }
+
         self.tabCate = TabCate(self, models, functions)
 
         # add tabs
