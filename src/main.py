@@ -19,11 +19,11 @@ from UI import (
     Ui_GbAddDelCate, Ui_GbAddDelChk
 )
 from model_numpy import Data, Stat_Data
+from constants import DATADIR
 
 
-CURRENT_DIR = os.path.dirname(__file__)
-CONFIG_DIR = os.environ['localappdata'] + '/hys.moneymanage'
-CONFIG_FILE = os.environ['localappdata'] + '/hys.moneymanage/config'
+CONFIG_DIR = DATADIR + 'hys.moneymanage'
+CONFIG_FILE = DATADIR + 'hys.moneymanage/config'
 
 
 DEFAULT_ENCODING = 'utf-8'
