@@ -2,7 +2,7 @@
 # pylint: disable=too-many-statements, too-few-public-methods, undefined-variable
 
 from PySide6.QtCore import Qt, QCoreApplication, QSize, QMetaObject
-from PySide6.QtGui import QRegularExpressionValidator, QAction
+from PySide6.QtGui import QRegularExpressionValidator, QAction, QKeySequence
 from PySide6.QtWidgets import (
     QWidget, QGroupBox, QTabWidget, QScrollArea,
     QVBoxLayout, QHBoxLayout, QGridLayout,
@@ -636,6 +636,7 @@ class Ui_MainWin:
         self.acLoad.setObjectName(u"acLoad")
         self.acSave = QAction(MainWin)
         self.acSave.setObjectName(u"acSave")
+        self.acSave.setShortcut(QKeySequence("Ctrl+S"))
         self.acSaveAs = QAction(MainWin)
         self.acSaveAs.setObjectName(u"acSaveAs")
         self.acImport = QAction(MainWin)

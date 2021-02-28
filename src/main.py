@@ -377,6 +377,9 @@ class TabData(QWidget, Ui_TabData):
         self.__data.refresh()
         self.resize()
 
+    def to_bottom(self):
+        self.treeData.scrollToBottom()
+
     def __add_data(self):
         try:
             date = self.lnDate.text()
@@ -964,6 +967,7 @@ class MainWin(QMainWindow, Ui_MainWin):
                 self.__last_file = file_path
                 self.__saved = True
                 self.tabData.resize()
+                self.tabData.to_bottom()
                 self.statusbar.showMessage('불러오기 성공', timeout=2000)
                 break
 
