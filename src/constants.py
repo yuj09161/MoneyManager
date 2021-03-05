@@ -31,3 +31,6 @@ if IS_ZIPFILE:
 else:
     ZIPAPP_FILE = ''
 PROGRAM_DIR += PATHSEP
+
+# module specific constant(s)
+DEFAULT_STD_DAY = 730120

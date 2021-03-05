@@ -19,7 +19,7 @@ from UI import (
     Ui_GbAddDelCate, Ui_GbAddDelChk
 )
 from model_numpy import Data, Stat_Data
-from constants import DATADIR
+from constants import DATADIR, DEFAULT_STD_DAY
 
 
 CONFIG_DIR = DATADIR + 'hys.moneymanage'
@@ -364,10 +364,12 @@ class TabData(QWidget, Ui_TabData):
         # connect signals
         self.treeData.selectionModel()\
             .selectionChanged.connect(self.__start_edit)
+        self.treeData.doubleClicked.connect(self.__del_data)
 
         self.cbType.currentIndexChanged.connect(self.__set_type)
 
-        self.treeData.doubleClicked.connect(self.__del_data)
+        self.lnCost.returnPressed.connect(self.__add_or_edit)
+        self.lnDetail.returnPressed.connect(self.__add_or_edit)
         self.btnAddData.clicked.connect(self.__add_data)
         self.btnEdit.clicked.connect(self.__edit_data)
         self.btnCancel.clicked.connect(self.__end_edit)
@@ -384,6 +386,14 @@ class TabData(QWidget, Ui_TabData):
 
     def to_bottom(self):
         self.treeData.scrollToBottom()
+
+    def __add_or_edit(self):
+        if self.__editing_row > 0:
+            print(self.__editing_row)
+            self.__edit_data()
+        else:
+            print('Add')
+            self.__add_data()
 
     def __add_data(self):
         try:
@@ -661,7 +671,8 @@ class TabStatM(QWidget, Ui_TabStatM):
             self.__data.in_type.get_no(),  # income (numbers)
             self.__data.out_type.get_no(),  # outcome (numbers)
             self.__data.sources.get_no_chk(),  # is cash? (no. -> chk)
-            self.__data.out_type.get_no_chk()  # is ness outcome? (no. -> chk)
+            self.__data.out_type.get_no_chk(),  # is ness outcome? (no. -> chk)
+            self.__data.std_day,  # standard day
         )
         self.__stat.set_data(data)
 
@@ -993,6 +1004,9 @@ class MainWin(QMainWindow, Ui_MainWin):
                         data[name] =\
                             [(int(n), t) for n, t in data[name].items()]
                     data['version'] = 2
+                if data['version'] == 2:
+                    data['std_day'] = DEFAULT_STD_DAY
+                    data['version'] = 3
 
                 self.__data.load_data(data)
 

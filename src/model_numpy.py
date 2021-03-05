@@ -5,8 +5,9 @@ import datetime
 
 import numpy as np
 
+from constants import DEFAULT_STD_DAY
 
-STD_DAY = 730120
+
 MAX_DATA_CNT = 10000
 
 
@@ -235,7 +236,8 @@ class Data(QStandardItemModel):
         super().__init__(0, 0, parent)
         self.setHorizontalHeaderLabels(self.__header_text)
 
-        self.__version = 2
+        self.__version = 3
+        self.__std_day = DEFAULT_STD_DAY
 
         self.__tmp_src_txt = {}
         self.__tmp_in_txt = {}
@@ -250,14 +252,13 @@ class Data(QStandardItemModel):
 
         self.__data = np.empty((MAX_DATA_CNT,), self.__data_form)
 
-        self.type.set_data(
-            list((k, x) for k, x in enumerate(self.__type_text[:-1]))
-        )
+        self.type.set_data(list(enumerate(self.__type_text[:-1])))
 
         self.row_count = 0
 
     def load_data(self, data):
         self.__version = data['version']
+        self.__std_day = data['std_day']
 
         self.sources.set_data(data['sources'])
         self.in_type.set_data(data['in_type'])
@@ -294,7 +295,7 @@ class Data(QStandardItemModel):
         # date
         dates = [
             datetime.date.fromordinal(x).isoformat()
-            for x in data['date'] + STD_DAY
+            for x in data['date'] + self.__std_day
         ]
         self.appendColumn(arr_to_qitem(dates))
 
@@ -342,6 +343,7 @@ class Data(QStandardItemModel):
         data = {}
 
         data['version'] = self.__version
+        data['std_day'] = self.__std_day
 
         data['sources'] = self.sources.get_raw()
         data['in_type'] = self.in_type.get_raw()
@@ -412,7 +414,7 @@ class Data(QStandardItemModel):
         raw_data = np.array(raw_data)
 
         # parse row 0, 2, 4
-        row0 = [(datetime.date.fromisoformat(x).toordinal() - STD_DAY)
+        row0 = [(datetime.date.fromisoformat(x).toordinal() - self.__std_day)
                 for x in raw_data[:-1, 0]]
         row2 = [sources[x] for x in raw_data[:-1, 2]]
         row4 = [int(x) for x in raw_data[:-1, 5]]
@@ -450,7 +452,7 @@ class Data(QStandardItemModel):
     def __parse_data(self, data):
         date, type_, src, det, val, desc = data
 
-        date = datetime.date.fromisoformat(date).toordinal() - STD_DAY
+        date = datetime.date.fromisoformat(date).toordinal() - self.__std_day
         src_txt = self.sources.get_txt_no()
         type_ = self.__type_text.index(type_)
 
@@ -539,6 +541,10 @@ class Data(QStandardItemModel):
     def data_name(self):
         return self.__data_name
 
+    @property
+    def std_day(self):
+        return self.__std_day
+
     # utility functions
     def move(self, row_no, dest):
         if dest >= self.row_count:
@@ -589,10 +595,11 @@ class Stat_Data(QStandardItemModel):
 
         self.__initalized = False
 
-    def set_type(self, sources, in_type, out_type, is_cash, is_ness):
+    def set_type(self, sources, in_type, out_type, is_cash, is_ness, std_day):
         self.__sources = sources
         self.__in_type = in_type
         self.__out_type = out_type
+        self.__std_day = std_day
 
         sources_cnt = (max(sources) + 1) if sources else 0
         in_cnt = (max(in_type) + 1) if in_type else 0
@@ -638,10 +645,10 @@ class Stat_Data(QStandardItemModel):
             raise NotInitalizedError
 
         self.__first_date = datetime.date.fromordinal(
-            data['date'].min() + STD_DAY
+            data['date'].min() + self.__std_day
         )
         self.__last_date = datetime.date.fromordinal(
-            data['date'].max() + STD_DAY
+            data['date'].max() + self.__std_day
         )
         first_y, first_m = self.__first_date.year, self.__first_date.month
         last_y, last_m = self.__last_date.year, self.__last_date.month
@@ -673,8 +680,10 @@ class Stat_Data(QStandardItemModel):
             else:
                 next_m = (y, m + 1)
 
-            first_date_m = datetime.date(y, m, 1).toordinal() - STD_DAY
-            last_date_m = datetime.date(*next_m, 1).toordinal() - STD_DAY
+            first_date_m =\
+                datetime.date(y, m, 1).toordinal() - self.__std_day
+            last_date_m =\
+                datetime.date(*next_m, 1).toordinal() - self.__std_day
             month_data = data[(
                 (data['date'] >= first_date_m) & (data['date'] < last_date_m)
             )]
@@ -773,7 +782,7 @@ class Stat_Data(QStandardItemModel):
             )))
 
     def add_data(self, data):
-        d = datetime.date.fromordinal(data[0] + STD_DAY)
+        d = datetime.date.fromordinal(data[0] + self.__std_day)
         m_c = (d.year, d.month)
 
         if m_c in self.__month_list:
@@ -871,7 +880,7 @@ class Stat_Data(QStandardItemModel):
             self.add_data(data)
 
     def del_data(self, data):
-        d = datetime.date.fromordinal(data[0] + STD_DAY)
+        d = datetime.date.fromordinal(data[0] + self.__std_day)
         m_c = (d.year, d.month)
 
         if m_c in self.__month_list:
