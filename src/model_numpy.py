@@ -22,6 +22,53 @@ class MaxDataCountError(Exception):
     pass
 
 
+class SimpleCombo(QStandardItemModel):
+    def __init__(self, parent=None):
+        super().__init__(0, 0, parent)
+
+        self._data = ['-']
+        self._compare = []
+
+    def __len__(self):
+        return len(self._data)
+
+    def __contains__(self, to_check):
+        return to_check in self._data
+
+    def clear(self):
+        self._data = ['-']
+        super().clear()
+
+    def set_data(self, data):
+        assert isinstance(data, list)
+        self._data = ['-'] + data
+        self._compare = [
+            list(map(int, record.split('-')))
+            for record in self._data if len(record) > 1
+        ]
+        self.appendRow(QStandardItem('-'))
+        for record in data:
+            self.appendRow(QStandardItem(record))
+
+    def sorted_insert(self, to_insert):
+        to_compare = list(map(int, to_insert.split('-')))
+        for k, record in enumerate(self._compare):
+            if record < to_compare:
+                self._data.insert(k + 1, to_insert)
+                self._compare.insert(k, to_compare)
+                self.insertRow(k + 1, QStandardItem(to_insert))
+                return
+        self._data.append(to_insert)
+        self._compare.append(to_compare)
+        self.appendRow(QStandardItem(to_insert))
+
+    def find(self, to_find):
+        return self._data.index(to_find)
+
+    def reversed_find(self, to_find):
+        return len(self._data) - 1 - self.find(to_find)
+
+
 class ComboData(QStandardItemModel):
     orderChanged = Signal()
 
@@ -400,47 +447,54 @@ class Data(QStandardItemModel):
         return data
 
     # getter/setter func
-    def add_data(self, *args):
-        assert len(args) == 6
-        date, type_, src, det, val, desc = args
+    def __parse_data(self, data):
+        date, type_, src, det, val, desc = data
+
+        date = datetime.date.fromisoformat(date).toordinal() - STD_DAY
+        src_txt = self.sources.get_txt_no()
+        type_ = self.__type_text.index(type_)
+
+        if type_ == 0:
+            det = self.in_type.get_txt_no()[det]
+        elif type_ == 1:
+            det = self.out_type.get_txt_no()[det]
+        elif type_ == 2:
+            det = src_txt[det]
+        else:
+            raise ValueError
+
+        parsed_data = (
+            date,
+            type_,
+            src_txt[src],
+            det,
+            int(val),
+            desc
+        )
+
+        return parsed_data
+
+    def add_data(self, *data):
+        assert len(data) == 6
 
         if self.row_count >= MAX_DATA_CNT:
             raise MaxDataCountError
         else:
             try:
-                date = datetime.date.fromisoformat(date).toordinal() - STD_DAY
-                src_txt = self.sources.get_txt_no()
-                type_ = self.__type_text.index(type_)
-
-                if type_ == 0:
-                    det = self.in_type.get_txt_no()[det]
-                elif type_ == 1:
-                    det = self.out_type.get_txt_no()[det]
-                elif type_ == 2:
-                    det = src_txt[det]
-                else:
-                    raise ValueError
-
-                parsed_data = (
-                    date,
-                    type_,
-                    src_txt[src],
-                    det,
-                    int(val),
-                    desc
-                )
+                parsed_data = self.__parse_data(data)
             except Exception:
                 raise ValueError('Tried to add data with wrong arguments')
             else:
+                date = parsed_data[0]
                 real_date = self.__data[:self.row_count]['date']
                 if date >= real_date[-1]:  # append(=insert at end)
                     index = self.row_count
-                    self.appendRow(arr_to_qitem(args))
+                    self.appendRow(arr_to_qitem(data))
                     self.__data[index] = parsed_data
                 else:
                     index = np.searchsorted(real_date, date, 'right')
                     tmp_list = np.array(parsed_data, self.__data_form)
-                    self.insertRow(index, arr_to_qitem(args))
+                    self.insertRow(index, arr_to_qitem(data))
                     if not index:
                         self.__data = np.append(
                             tmp_list, self.__data[:MAX_DATA_CNT - 1]
@@ -468,43 +522,47 @@ class Data(QStandardItemModel):
     def get_at(self, row_no):
         return self.__data[row_no]
 
-    def set_at(self, row_no, *args):
-        assert len(args) == 6
-        date, type_, src, det, val, desc = args
+    def set_at(self, row_no, *data):
+        assert len(data) == 6
 
         try:
-            date = datetime.date.fromisoformat(date).toordinal() - STD_DAY
-            src_txt = self.sources.get_txt_no()
-            type_ = self.__type_text.index(type_)
-
-            if type_ == 0:
-                det = self.in_type.get_txt_no()[det]
-            elif type_ == 1:
-                det = self.out_type.get_txt_no()[det]
-            elif type_ == 2:
-                det = src_txt[det]
-            else:
-                raise ValueError
-
-            parsed_data = (
-                date,
-                type_,
-                src_txt[src],
-                det,
-                int(val),
-                desc
-            )
+            parsed_data = self.__parse_data(data)
         except Exception:
             raise ValueError('Tried to set data with wrong arguments')
         else:
             self.__data[row_no] = parsed_data
-            for k, item in enumerate(arr_to_qitem(args)):
+            for k, item in enumerate(arr_to_qitem(data)):
                 self.setItem(row_no, k, item)
             return parsed_data
 
     @property
     def data_name(self):
         return self.__data_name
+
+    # utility functions
+    def move(self, row_no, dest):
+        if dest >= self.row_count:
+            return 1
+
+        to_move = self.__data[row_no]
+        self.__data = np.insert(np.delete(self.__data, row_no), dest, to_move)
+
+        row_items = self.takeRow(row_no)
+        self.insertRow(dest, row_items)
+
+        return 0
+
+    def check_date(self, row_no):
+        date = self.__data[row_no]['date']
+        return (
+            bool(  # head
+                row_no > 0 and date == self.__data[row_no - 1]['date']
+            ),
+            bool(  # tail
+                row_no < self.row_count
+                and date == self.__data[row_no + 1]['date']
+            )
+        )
 
 
 class Stat_Data(QStandardItemModel):
@@ -527,7 +585,7 @@ class Stat_Data(QStandardItemModel):
         super().__init__(0, 0, parent)
         self.setHorizontalHeaderLabels(self.__header_text)
 
-        self.months = ComboData()
+        self.months = SimpleCombo()
 
         self.__initalized = False
 
@@ -604,7 +662,7 @@ class Stat_Data(QStandardItemModel):
 
         self.__data = np.zeros((len(self.__month_list),), self.__data_form)
 
-        self.__real_month = []
+        real_month = []
         last_current = self.__empty_arr[0]['current']
         for k, (y, m) in enumerate(self.__month_list):
             self.__data[k]['year'] = y
@@ -694,11 +752,9 @@ class Stat_Data(QStandardItemModel):
                     net, income, outcome, move
                 )))
             last_current = d_c['current']
-            self.__real_month.append(f'{y}-{m}')
+            real_month.append(f'{y}-{m}')
 
-        self.months.set_data(
-            list((k, x) for k, x in enumerate(['-'] + self.__real_month))
-        )
+        self.months.set_data(list(reversed(real_month)))
 
     def get_raw(self):
         return self.__data
@@ -722,27 +778,14 @@ class Stat_Data(QStandardItemModel):
 
         if m_c in self.__month_list:
             month_txt = f'{m_c[0]}-{m_c[1]}'
-            if month_txt not in self.__real_month:
-                last_index = len(self.__real_month) - 2
-
-                self.__real_month.append(month_txt)
-                self.__real_month.sort()
+            if month_txt not in self.months:
                 insert = True
-
-                index_m = self.__real_month.index(month_txt)
-                if index_m > last_index:
-                    self.months.appendRow(
-                        QStandardItem(month_txt)
-                    )
-                else:
-                    self.months.insertRow(
-                        index_m + 1, QStandardItem(month_txt)
-                    )
+                self.months.sorted_insert(month_txt)
             else:
                 insert = False
 
             index = self.__month_list.index(m_c)
-            index2 = self.__real_month.index(f'{m_c[0]}-{m_c[1]}')
+            index2 = self.months.reversed_find(f'{m_c[0]}-{m_c[1]}')
             d_c = self.__data[index]
 
             type_ = data[1]
@@ -833,7 +876,7 @@ class Stat_Data(QStandardItemModel):
 
         if m_c in self.__month_list:
             index = self.__month_list.index(m_c)
-            index2 = self.__real_month.index(f'{m_c[0]}-{m_c[1]}')
+            index2 = self.months.reversed_find(f'{m_c[0]}-{m_c[1]}')
             d_c = self.__data[index]
 
             type_ = data[1]

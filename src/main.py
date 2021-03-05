@@ -1,4 +1,4 @@
-from PySide6.QtCore import Signal, Qt
+from PySide6.QtCore import Signal, Qt, QItemSelectionModel
 from PySide6.QtWidgets import (
     QMainWindow, QApplication, QWidget, QGroupBox,
     QLabel, QTreeView, QMessageBox, QFileDialog
@@ -353,6 +353,8 @@ class TabData(QWidget, Ui_TabData):
         self.__refresh_stat = functions['refresh_stat']
         self.__set_saved = functions['set_saved']
 
+        self.__editing_row = -1
+
         # set model
         self.treeData.setModel(self.__data)
         self.cbType.setModel(self.__data.type)
@@ -367,7 +369,10 @@ class TabData(QWidget, Ui_TabData):
 
         self.treeData.doubleClicked.connect(self.__del_data)
         self.btnAddData.clicked.connect(self.__add_data)
+        self.btnEdit.clicked.connect(self.__edit_data)
         self.btnCancel.clicked.connect(self.__end_edit)
+        self.btnUp.clicked.connect(lambda: self.__move(-1))
+        self.btnDown.clicked.connect(lambda: self.__move(1))
 
     def resize(self):
         for k in range(0, self.__data.column_count):
@@ -445,33 +450,48 @@ class TabData(QWidget, Ui_TabData):
             self.resize()
             self.__set_saved(False)
 
+    def __check_date(self):
+        assert self.__editing_row > 0
+        head, tail = self.__data.check_date(self.__editing_row)
+        self.btnUp.setEnabled(head)
+        self.btnDown.setEnabled(tail)
+
     def __start_edit(self, sel, _):
-        row_no = sel.indexes()[0].row()
+        selection = sel.indexes()
+        if selection:
+            self.__edit_at(selection[0].row())
 
-        type_ = self.__data.get_at(row_no)[1]
+    def __edit_at(self, row_no):
+        self.__editing_row = row_no
+        type_ = self.__data.get_at(row_no)['type']
 
-        if type_ != 3:
-            date = self.__data.item(row_no, 0).text()
-            src = self.__data.item(row_no, 2).text()
-            det = self.__data.item(row_no, 3).text()
-            cost = self.__data.item(row_no, 4).text()
-            desc = self.__data.item(row_no, 5).text()
+        if type_ == 3:
+            return
 
-            self.lnDate.setText(date)
-            self.cbType.setCurrentIndex(type_)
-            self.cbSrc.setCurrentText(src)
-            self.cbDetail.setCurrentText(det)
-            self.lnCost.setText(cost)
-            self.lnDetail.setText(desc)
+        date = self.__data.item(row_no, 0).text()
+        src = self.__data.item(row_no, 2).text()
+        det = self.__data.item(row_no, 3).text()
+        cost = self.__data.item(row_no, 4).text()
+        desc = self.__data.item(row_no, 5).text()
 
-            self.btnAddData.setText('수정')
-            self.btnCancel.show()
-            self.btnAddData.clicked.disconnect()
-            self.btnAddData.clicked.connect(
-                lambda: self.__edit_data(row_no, date)
-            )
+        self.lnDate.setText(date)
+        self.cbType.setCurrentIndex(type_)
+        self.cbSrc.setCurrentText(src)
+        self.cbDetail.setCurrentText(det)
+        self.lnCost.setText(cost)
+        self.lnDetail.setText(desc)
+
+        self.__check_date()
+
+        self.btnEdit.show()
+        self.btnCancel.show()
+        self.btnUp.show()
+        self.btnDown.show()
+        self.btnAddData.hide()
 
     def __end_edit(self):
+        assert self.__editing_row >= 0
+
         self.lnDate.setText('')
         self.cbType.setCurrentIndex(0)
         self.cbSrc.setCurrentIndex(0)
@@ -479,14 +499,23 @@ class TabData(QWidget, Ui_TabData):
         self.lnCost.setText('')
         self.lnDetail.setText('')
 
-        self.btnAddData.setText('추가')
+        self.btnEdit.hide()
         self.btnCancel.hide()
-        self.btnAddData.clicked.disconnect()
-        self.btnAddData.clicked.connect(self.__add_data)
+        self.btnUp.hide()
+        self.btnDown.hide()
+        self.btnAddData.show()
 
-    def __edit_data(self, row_no, priv_date):
-        # delete stat
+        self.treeData.clearSelection()
+
+    def __edit_data(self):
+        assert self.__editing_row >= 0
+
+        # get priv information
+        row_no = self.__editing_row
         data = self.__data.get_at(row_no)
+        priv_date = self.__data.item(row_no, 0).text()
+
+        # delete stat
         self.__stat.del_data(data)
         # change data & add stat
         try:
@@ -527,6 +556,22 @@ class TabData(QWidget, Ui_TabData):
             self.resize()
             self.__set_saved(False)
             self.__end_edit()
+
+    def __move(self, diff):
+        # move data & view
+        assert self.__editing_row >= 0
+        dest = self.__editing_row + diff
+        self.__data.move(self.__editing_row, dest)
+        self.__set_saved(False)
+
+        # change selection
+        self.__edit_at(dest)
+        self.treeData.selectionModel().select(
+            self.__data.index(dest, 0),
+            QItemSelectionModel.Rows | QItemSelectionModel.ClearAndSelect
+        )
+
+        self.__check_date()
 
     def __set_type(self, index):
         if index == 2:

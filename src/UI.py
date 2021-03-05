@@ -333,6 +333,17 @@ class Ui_TabData:
         self.lbDesc.setObjectName(u"lbDesc")
         self.glDataIn.addWidget(self.lbDesc, 0, 5, 1, 1, Qt.AlignHCenter)
 
+        self.btnCancel = QPushButton(self.widInput)
+        self.btnCancel.setObjectName(u"btnCancel")
+        self.btnCancel.hide()
+        self.glDataIn.addWidget(self.btnCancel, 0, 6, 1, 1)
+
+        self.btnUp = QPushButton(self.widInput)
+        self.btnUp.setObjectName(u"btnUp")
+        self.btnUp.hide()
+        self.btnUp.setMaximumWidth(25)
+        self.glDataIn.addWidget(self.btnUp, 0, 7, 1, 1)
+
         self.lnDate = QLineEdit(self.widInput)
         self.lnDate.setObjectName(u"lnDate")
         self.lnDate.setAlignment(Qt.AlignCenter)
@@ -368,10 +379,16 @@ class Ui_TabData:
         self.btnAddData.setObjectName(u"btnAddData")
         self.glDataIn.addWidget(self.btnAddData, 1, 6, 1, 1)
 
-        self.btnCancel = QPushButton(self.widInput)
-        self.btnCancel.setObjectName(u"btnCancel")
-        self.btnCancel.hide()
-        self.glDataIn.addWidget(self.btnCancel, 1, 7, 1, 1)
+        self.btnEdit = QPushButton(self.widInput)
+        self.btnEdit.setObjectName(u"btnEdit")
+        self.btnEdit.hide()
+        self.glDataIn.addWidget(self.btnEdit, 1, 6, 1, 1)
+
+        self.btnDown = QPushButton(self.widInput)
+        self.btnDown.setObjectName(u"btnDown")
+        self.btnDown.hide()
+        self.btnDown.setMaximumWidth(25)
+        self.glDataIn.addWidget(self.btnDown, 1, 7, 1, 1)
 
         self.vlData.addWidget(self.widInput)
 
@@ -384,8 +401,12 @@ class Ui_TabData:
         self.lbDetail.setText(QCoreApplication.translate("MainWin", u"\uc0c1\uc138", None))
         self.lbCost.setText(QCoreApplication.translate("MainWin", u"\uae08\uc561", None))
         self.lbDesc.setText(QCoreApplication.translate("MainWin", u"\uc124\uba85", None))
+
         self.btnAddData.setText(QCoreApplication.translate("MoneyManage", u"\ub370\uc774\ud130 \ucd94\uac00", None))
+        self.btnEdit.setText(QCoreApplication.translate("MoneyManage", u"\uc218\uc815", None))
         self.btnCancel.setText(QCoreApplication.translate("MoneyManage", u"\ucde8\uc18c", None))
+        self.btnUp.setText(QCoreApplication.translate("MoneyManage", u"\u25b2", None))
+        self.btnDown.setText(QCoreApplication.translate("MoneyManage", u"\u25bc", None))
 
         self.lnDate.setInputMask(r'2\0D9-99-99;_')
         self.lnDate.setValidator(QRegularExpressionValidator('20[1-9_][0-9_]-(0[1-9_]|1[0-2_]|__)-(0[1-9_]|[12][0-9_]|3[01_]|__)'))
@@ -425,6 +446,14 @@ class Ui_TabStatM:
         self.glCent = QGridLayout(self.widCent)
         self.glCent.setObjectName(u"glCent")
 
+
+        ###############################################
+        #                Groupbox order               #
+        # Month, Income, Outcome, Current, Move, Stat #
+        ###############################################
+
+
+        # Month groupbox
         self.gbMonth = QGroupBox(self.widCent)
         self.gbMonth.setObjectName(u"gbMonth")
         sizePolicy_PF.setHeightForWidth(self.gbMonth.sizePolicy().hasHeightForWidth())
@@ -442,8 +471,10 @@ class Ui_TabStatM:
         self.hlMonth.addWidget(self.cbMonth)
 
         self.glCent.addWidget(self.gbMonth, 0, 0, 1, 2)
+        # end Month
 
 
+        # Income groupbox
         self.gbIncome = QGroupBox(self.widCent)
         self.gbIncome.setObjectName(u"gbIncome")
         self.glIncome = QGridLayout(self.gbIncome)
@@ -462,9 +493,11 @@ class Ui_TabStatM:
         self.lbSumIncome.setAlignment(Qt.AlignCenter)
         self.glIncome.addWidget(self.lbSumIncome, 0, 2, 1, 2)
 
-        self.glCent.addWidget(self.gbIncome, 1, 0, 1, 1)
+        self.glCent.addWidget(self.gbIncome, 3, 0, 1, 1)
+        # end Income
 
 
+        # Outcome groupbox
         self.gbOutcome = QGroupBox(self.widCent)
         self.gbOutcome.setObjectName(u"gbOutcome")
         self.glOutcome = QGridLayout(self.gbOutcome)
@@ -478,15 +511,16 @@ class Ui_TabStatM:
             self.glOutcome.addWidget(lb, x, y, w, h)
             self.lbTitleOutcome.append(lb)
 
-
         self.lbSumOutcome = QLabel(self.gbOutcome)
         self.lbSumOutcome.setObjectName(u"lbSumOutcome")
         self.lbSumOutcome.setAlignment(Qt.AlignCenter)
         self.glOutcome.addWidget(self.lbSumOutcome, 0, 2, 1, 2)
 
-        self.glCent.addWidget(self.gbOutcome, 2, 0, 1, 1)
+        self.glCent.addWidget(self.gbOutcome, 2, 1, 1, 1)
+        # end Outcome
 
 
+        # Current groupbox
         self.gbCurrent = QGroupBox(self.widCent)
         self.gbCurrent.setObjectName(u"gbCurrent")
         self.glCurrent = QGridLayout(self.gbCurrent)
@@ -512,9 +546,11 @@ class Ui_TabStatM:
         self.lbSumCash.setAlignment(Qt.AlignCenter)
         self.glCurrent.addWidget(self.lbSumCash, 1, 1, 1, 1)
 
-        self.glCent.addWidget(self.gbCurrent, 1, 1, 1, 1)
+        self.glCent.addWidget(self.gbCurrent, 2, 0, 1, 1)
+        # end Current
 
 
+        # Move groupbox
         self.gbMove = QGroupBox(self.widCent)
         self.gbMove.setObjectName(u"gbMove")
         self.glMove = QGridLayout(self.gbMove)
@@ -533,9 +569,11 @@ class Ui_TabStatM:
         self.lbSumMove.setAlignment(Qt.AlignCenter)
         self.glMove.addWidget(self.lbSumMove, 0, 2, 1, 2)
 
-        self.glCent.addWidget(self.gbMove, 2, 1, 1, 1)
+        self.glCent.addWidget(self.gbMove, 3, 1, 1, 1)
+        # end Move
 
 
+        # Stat groupbox
         self.gbStat = QGroupBox(self.widCent)
         self.gbStat.setObjectName(u"gbStat")
         sizePolicy_PF.setHeightForWidth(self.gbStat.sizePolicy().hasHeightForWidth())
@@ -585,7 +623,8 @@ class Ui_TabStatM:
         self.lbOut2.setAlignment(Qt.AlignCenter)
         self.glStat.addWidget(self.lbOut2, 1, 2, 1, 1)
 
-        self.glCent.addWidget(self.gbStat, 3, 0, 1, 2)
+        self.glCent.addWidget(self.gbStat, 1, 0, 1, 2)
+        # end Stat
 
 
         self.scCent.setWidget(self.widCent)
