@@ -389,11 +389,13 @@ class TabData(QWidget, Ui_TabData):
 
     def __add_or_edit(self):
         if self.__editing_row > 0:
-            print(self.__editing_row)
             self.__edit_data()
         else:
-            print('Add')
             self.__add_data()
+
+    def __reset_focus(self):
+        self.lnDate.setFocus()
+        self.lnDate.setCursorPosition(2)
 
     def __add_data(self):
         try:
@@ -450,6 +452,7 @@ class TabData(QWidget, Ui_TabData):
             self.cbDetail.setCurrentIndex(0)
             self.lnCost.setText('')
             self.lnDetail.setText('')
+            self.__reset_focus()
 
     def __del_data(self, data_no):
         row = data_no.row()
@@ -459,6 +462,7 @@ class TabData(QWidget, Ui_TabData):
             self.__refresh_stat()
             self.resize()
             self.__set_saved(False)
+        self.__end_edit()
 
     def __check_date(self):
         assert self.__editing_row > 0
@@ -516,6 +520,7 @@ class TabData(QWidget, Ui_TabData):
         self.btnAddData.show()
 
         self.treeData.clearSelection()
+        self.__reset_focus()
 
     def __edit_data(self):
         assert self.__editing_row >= 0

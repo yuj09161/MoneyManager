@@ -371,8 +371,9 @@ class Ui_TabData:
         self.glDataIn.addWidget(self.lnCost, 1, 4, 1, 1)
 
         self.lnDetail = QLineEdit(self.widInput)
-        self.lnDetail.setAlignment(Qt.AlignCenter)
         self.lnDetail.setObjectName(u"lnDetail")
+        self.lnDetail.setAlignment(Qt.AlignCenter)
+        self.lnDetail.setMaxLength(60)
         self.glDataIn.addWidget(self.lnDetail, 1, 5, 1, 1)
 
         self.btnAddData = QPushButton(self.widInput)
@@ -411,7 +412,6 @@ class Ui_TabData:
         self.lnDate.setInputMask(r'2\0D9-99-99;_')
         self.lnDate.setValidator(QRegularExpressionValidator('20[1-9_][0-9_]-(0[1-9_]|1[0-2_]|__)-(0[1-9_]|[12][0-9_]|3[01_]|__)'))
         self.lnCost.setValidator(QRegularExpressionValidator('[1-9][0-9]{0,7}'))
-        self.lnDetail.setMaxLength(64)
 
 
 class Ui_TabStatS:
