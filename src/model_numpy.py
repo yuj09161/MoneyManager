@@ -67,7 +67,7 @@ class SimpleCombo(QStandardItemModel):
         return self._data.index(to_find)
 
     def reversed_find(self, to_find):
-        return len(self._data) - 1 - self.find(to_find)
+        return len(self._data) - self.find(to_find)
 
 
 class ComboData(QStandardItemModel):

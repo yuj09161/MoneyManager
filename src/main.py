@@ -521,6 +521,7 @@ class TabData(QWidget, Ui_TabData):
 
         self.treeData.clearSelection()
         self.__reset_focus()
+        self.__editing_row = -1
 
     def __edit_data(self):
         assert self.__editing_row >= 0
