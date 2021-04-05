@@ -67,7 +67,7 @@ class SimpleCombo(QStandardItemModel):
         return self._data.index(to_find)
 
     def reversed_find(self, to_find):
-        return len(self._data) - self.find(to_find)
+        return len(self._data) - self.find(to_find) - 1
 
 
 class ComboData(QStandardItemModel):
@@ -583,8 +583,6 @@ class Stat_Data(QStandardItemModel):
         'income_typ', 'outcome_typ',
         'move_in', 'move_out',
     )
-    __type_col = ('income_src', 'outcome_src')
-    __type_col2 = ('income_typ', 'outcome_typ')
     column_count = len(__header_text)
 
     def __init__(self, parent=None):
@@ -796,6 +794,7 @@ class Stat_Data(QStandardItemModel):
             index = self.__month_list.index(m_c)
             index2 = self.months.reversed_find(f'{m_c[0]}-{m_c[1]}')
             d_c = self.__data[index]
+            d_cn = self.__data[index:]
 
             type_ = data[1]
             src = data[2]
@@ -804,17 +803,19 @@ class Stat_Data(QStandardItemModel):
             if type_ == 2:  # move
                 dst = data[3]
                 d_c['move_in'][dst] += val
-                d_c['current'][dst] += val
                 d_c['move_out'][src] += val
-                d_c['current'][src] -= val
+                d_cn['current'][:, dst] += val
+                d_cn['current'][:, src] -= val
             else:  # income or outcome
                 det = data[3]
-                d_c[self.__type_col[type_]][src] += val
-                d_c[self.__type_col2[type_]][det] += val
-                if type_ == 0:
-                    d_c['current'][src] += val
-                elif type_ == 1:
-                    d_c['current'][src] -= val
+                if type_ == 0:  # income
+                    d_cn['current'][:, src] += val
+                    d_c['income_src'][src] += val
+                    d_c['income_typ'][det] += val
+                elif type_ == 1:  # outcome
+                    d_cn['current'][:, src] -= val
+                    d_c['outcome_src'][src] += val
+                    d_c['outcome_typ'][det] += val
 
             # recalculate summary
             current, cash, income, outcome, net, move\
@@ -887,6 +888,7 @@ class Stat_Data(QStandardItemModel):
             index = self.__month_list.index(m_c)
             index2 = self.months.reversed_find(f'{m_c[0]}-{m_c[1]}')
             d_c = self.__data[index]
+            d_cn = self.__data[index:]
 
             type_ = data[1]
             src = data[2]
@@ -895,17 +897,19 @@ class Stat_Data(QStandardItemModel):
             if type_ == 2:  # move
                 dst = data[3]
                 d_c['move_in'][dst] -= val
-                d_c['current'][dst] -= val
                 d_c['move_out'][src] -= val
-                d_c['current'][src] += val
+                d_cn['current'][:, dst] -= val
+                d_cn['current'][:, src] += val
             else:  # income or outcome
                 det = data[3]
-                d_c[self.__type_col[type_]][src] -= val
-                d_c[self.__type_col2[type_]][det] -= val
-                if type_ == 0:
-                    d_c['current'][src] -= val
-                elif type_ == 1:
-                    d_c['current'][src] += val
+                if type_ == 0:  # income
+                    d_cn['current'][:, src] -= val
+                    d_c['income_src'][src] -= val
+                    d_c['income_typ'][det] -= val
+                elif type_ == 1:  # outcome
+                    d_cn['current'][:, src] += val
+                    d_c['outcome_src'][src] -= val
+                    d_c['outcome_typ'][det] -= val
 
             # recalculate summary
             current, cash, income, outcome, net, move\
