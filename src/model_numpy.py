@@ -256,6 +256,14 @@ class Data(QStandardItemModel):
 
         self.row_count = 0
 
+    @property
+    def data_name(self):
+        return self.__data_name
+
+    @property
+    def std_day(self):
+        return self.__std_day
+
     def load_data(self, data):
         self.__version = data['version']
         self.__std_day = data['std_day']
@@ -537,14 +545,6 @@ class Data(QStandardItemModel):
                 self.setItem(row_no, k, item)
             return parsed_data
 
-    @property
-    def data_name(self):
-        return self.__data_name
-
-    @property
-    def std_day(self):
-        return self.__std_day
-
     # utility functions
     def move(self, row_no, dest):
         if dest >= self.row_count:
@@ -592,6 +592,7 @@ class Stat_Data(QStandardItemModel):
         self.months = SimpleCombo()
 
         self.__initalized = False
+        self.__data = None
 
     def set_type(self, sources, in_type, out_type, is_cash, is_ness, std_day):
         self.__sources = sources
@@ -642,6 +643,7 @@ class Stat_Data(QStandardItemModel):
         if not self.__initalized:
             raise NotInitalizedError
 
+        self.__data = data
         self.__first_date = datetime.date.fromordinal(
             data['date'].min() + self.__std_day
         )
@@ -665,13 +667,13 @@ class Stat_Data(QStandardItemModel):
         for m in range(1, last_m + 1):
             self.__month_list.append((last_y, m))
 
-        self.__data = np.zeros((len(self.__month_list),), self.__data_form)
+        self.__stat = np.zeros((len(self.__month_list),), self.__data_form)
 
         real_month = []
         last_current = self.__empty_arr[0]['current']
         for k, (y, m) in enumerate(self.__month_list):
-            self.__data[k]['year'] = y
-            self.__data[k]['month'] = m
+            self.__stat[k]['year'] = y
+            self.__stat[k]['month'] = m
 
             if m == 12:
                 next_m = (y + 1, 1)
@@ -687,10 +689,10 @@ class Stat_Data(QStandardItemModel):
             )]
 
             if not month_data.size:
-                self.__data[k]['current'] = last_current.copy()
+                self.__stat[k]['current'] = last_current.copy()
                 continue
 
-            d_c = self.__data[k]
+            d_c = self.__stat[k]
 
             # loop: in_type
             for d in self.__in_type:
@@ -764,11 +766,11 @@ class Stat_Data(QStandardItemModel):
         self.months.set_data(list(reversed(real_month)))
 
     def get_raw(self):
-        return self.__data
+        return self.__stat
 
     def get_month(self, month):
         if month:
-            d_c = self.__data[self.__month_list.index(month)].copy()
+            d_c = self.__stat[self.__month_list.index(month)].copy()
 
             current, cash, income, outcome, net, move\
                 = self.__caluclate_summary(d_c)
@@ -778,6 +780,130 @@ class Stat_Data(QStandardItemModel):
                 income, outcome, current, cash, move,
                 net, ness, outcome - ness
             )))
+
+    def get_intv(
+        self,
+        start: datetime.date,
+        end: datetime.date
+    ):
+        """
+        calculate income, outcome and move in start <= day <= end
+        and calculate current money at end date
+
+        Args:
+            start (datetime.date): date of interval start
+            end (datetime.date): date of interval end
+        """
+        assert isinstance(start, datetime.date)
+        assert isinstance(end, datetime.date)
+
+        first_day_of_end_month = end.replace(day=1)
+        start_diff = start.toordinal() - self.__std_day
+        end_diff = end.toordinal() - self.__std_day
+        end_month_diff = first_day_of_end_month.toordinal() - self.__std_day
+
+        print(start, end, first_day_of_end_month)
+
+        intv_data = self.__data[
+            (self.__data['date'] >= start_diff)
+            & (self.__data['date'] <= end_diff)
+        ]
+        end_month_data = self.__data[
+            (self.__data['date'] >= end_month_diff)
+            & (self.__data['date'] <= end_diff)
+        ]
+        y = end.year
+        m = end.month
+        if m == 1:
+            y -= 1
+            m = 12
+        else:
+            m -= 1
+        while (y, m) not in self.__month_list:
+            if m == 1:
+                y -= 1
+                m = 12
+            else:
+                m -= 1
+        last_current = self.__stat[
+            self.__month_list.index((y, m))
+        ]['current']
+        print(y, m, last_current)
+        result = np.zeros((1,), self.__data_form)[0]
+
+        # loop: in_type
+        for t in self.__in_type:
+            result['income_typ'][t] = intv_data[(
+                (intv_data['type'] == 0) & (intv_data['det'] == t)
+            )]['val'].sum()
+
+        # loop: out_type
+        for t in self.__out_type:
+            result['outcome_typ'][t] = intv_data[(
+                (intv_data['type'] == 1) & (intv_data['det'] == t)
+            )]['val'].sum()
+
+        # loop: sources
+        for s in self.__sources:
+            # income, outcome and move in start <= day <= end
+            # income
+            result['income_src'][s] = intv_data[(
+                (intv_data['type'] == 0) & (intv_data['src'] == s)
+            )]['val'].sum()
+            # outcome
+            result['outcome_src'][s] = intv_data[(
+                (intv_data['type'] == 1) & (intv_data['src'] == s)
+            )]['val'].sum()
+            # move: out
+            result['move_out'][s] = intv_data[(
+                (intv_data['type'] == 2) & (intv_data['src'] == s)
+            )]['val'].sum()
+            # move: in
+            result['move_in'][s] = intv_data[(
+                (intv_data['type'] == 2) & (intv_data['det'] == s)
+            )]['val'].sum()
+
+            # current money at day == end
+            # income
+            sum_in_src = end_month_data[(
+                (end_month_data['type'] == 0) & (end_month_data['src'] == s)
+            )]['val'].sum()
+            # outcome
+            sum_out_src = end_month_data[(
+                (end_month_data['type'] == 1) & (end_month_data['src'] == s)
+            )]['val'].sum()
+            # move: out
+            sum_mv_out = end_month_data[(
+                (end_month_data['type'] == 2) & (end_month_data['src'] == s)
+            )]['val'].sum()
+            # move: in
+            sum_mv_in = end_month_data[(
+                (end_month_data['type'] == 2) & (end_month_data['det'] == s)
+            )]['val'].sum()
+            # first
+            sum_f = end_month_data[(
+                (end_month_data['type'] == 3) & (end_month_data['src'] == s)
+            )]['val'].sum()
+            # calculate current
+            result['current'][s] = (
+                sum_in_src.astype(np.int64)
+                + sum_mv_in
+                - sum_out_src
+                - sum_mv_out
+                + last_current[s]
+                + sum_f
+            )
+        # end sources loop
+
+        # calculate summary
+        current, cash, income, outcome, net, move\
+            = self.__caluclate_summary(result)
+        ness = result['outcome_typ'][self.__ness_dst].sum()
+
+        return (result, map(str, (
+            income, outcome, current, cash, move,
+            net, ness, outcome - ness
+        )))
 
     def add_data(self, data):
         d = datetime.date.fromordinal(data[0] + self.__std_day)
@@ -793,8 +919,8 @@ class Stat_Data(QStandardItemModel):
 
             index = self.__month_list.index(m_c)
             index2 = self.months.reversed_find(f'{m_c[0]}-{m_c[1]}')
-            d_c = self.__data[index]
-            d_cn = self.__data[index:]
+            d_c = self.__stat[index]
+            d_cn = self.__stat[index:]
 
             type_ = data[1]
             src = data[2]
@@ -863,7 +989,7 @@ class Stat_Data(QStandardItemModel):
                 )
 
             l = len(tmp_m)  # noqa: E741
-            last_month = self.__data[-1]
+            last_month = self.__stat[-1]
             tmp_data = np.zeros((l,), self.__data_form)
             for k, (y, m) in enumerate(tmp_m):
                 tmp_data[k]['year'] = y
@@ -872,10 +998,10 @@ class Stat_Data(QStandardItemModel):
                 last_month = tmp_data[k]
 
             if d > self.__last_date:
-                self.__data = np.append(self.__data, tmp_data)
+                self.__stat = np.append(self.__stat, tmp_data)
                 self.__last_date = d
             elif d < self.__first_date:
-                self.__data = np.append(tmp_data, self.__data)
+                self.__stat = np.append(tmp_data, self.__stat)
                 self.__first_date = d
 
             self.add_data(data)
@@ -887,8 +1013,8 @@ class Stat_Data(QStandardItemModel):
         if m_c in self.__month_list:
             index = self.__month_list.index(m_c)
             index2 = self.months.reversed_find(f'{m_c[0]}-{m_c[1]}')
-            d_c = self.__data[index]
-            d_cn = self.__data[index:]
+            d_c = self.__stat[index]
+            d_cn = self.__stat[index:]
 
             type_ = data[1]
             src = data[2]

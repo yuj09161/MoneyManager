@@ -1,4 +1,4 @@
-from PySide6.QtCore import Signal, Qt, QItemSelectionModel
+from PySide6.QtCore import Signal, Qt, QItemSelectionModel, QDate
 from PySide6.QtWidgets import (
     QMainWindow, QApplication, QWidget, QGroupBox,
     QLabel, QTreeView, QMessageBox, QFileDialog
@@ -610,6 +610,10 @@ class TabStatS(QWidget, Ui_TabStatS):
 
 
 class TabStatM(QWidget, Ui_TabStatM):
+    MONTHLY = 0
+    WEEKLY = 1
+    DAILY = 2
+
     def __init__(self, parent, models):
         super().__init__(parent)
         self.setupUi(self)
@@ -617,43 +621,93 @@ class TabStatM(QWidget, Ui_TabStatM):
         self.__data = models['data']
         self.__stat = models['stat']
 
-        self.__refresh = True
+        self.__mode = self.MONTHLY
 
         # set model
         self.cbMonth.setModel(self.__stat.months)
 
         # connect signals
+        self.rbMonthly.clicked.connect(self.__set_interval)
+        self.rbWeekly.clicked.connect(self.__set_interval)
+        self.rbDaily.clicked.connect(self.__set_interval)
         self.cbMonth.currentTextChanged.connect(self.__set_month)
+        self.calInterval.selectionChanged.connect((
+            lambda: self.__set_week() if self.__mode == self.WEEKLY
+            else self.__set_day()
+        ))
 
     def refresh_stat(self):
         self.__set_month(self.cbMonth.currentText())
+
+    def __first_day_of_week(self, date):
+        assert isinstance(date, QDate)
+        weekday = date.dayOfWeek()
+        return date.addDays(0 if weekday == 7 else -weekday)
+
+    def __set_interval(self):
+        if self.rbMonthly.isChecked():
+            self.calInterval.hide()
+            self.cbMonth.show()
+            self.cbMonth.setCurrentIndex(0)
+            self.__set_month('-')
+            self.__mode = self.MONTHLY
+        else:
+            self.calInterval.show()
+            self.cbMonth.hide()
+            date = QDate.currentDate()
+            if self.rbWeekly.isChecked():
+                self.__mode = self.WEEKLY
+                self.calInterval.setSelectedDate(
+                    self.__first_day_of_week(date)
+                )
+                self.__set_week(date)
+            else:  # daily
+                self.__mode = self.DAILY
+                self.calInterval.setSelectedDate(date)
+                self.__set_day(date)
+
+    def __set_stat(self, data):
+        data, sums = data
+
+        src_ni = self.__data.sources.get_index_no()
+        in_ni = self.__data.in_type.get_index_no()
+        out_ni = self.__data.out_type.get_index_no()
+
+        for wids, type_, changer in zip(
+            self.__data_labels, self.__stat.data_name[2:],
+            (src_ni, src_ni, src_ni, in_ni, out_ni, src_ni, src_ni)
+        ):
+            for b, wid in enumerate(wids):
+                wid.setText(str(data[type_][changer[b]]))
+
+        for wid, sum_ in zip(self.__sum_labels, sums):
+            wid.setText(sum_)
 
     def __set_month(self, text):
         if text and text != '-':  # if month -> set data
             m_c = tuple(map(int, text.split('-')))
             raw_data = self.__stat.get_month(m_c)
             if raw_data:
-                data, sums = raw_data
-
-                src_ni = self.__data.sources.get_index_no()
-                in_ni = self.__data.in_type.get_index_no()
-                out_ni = self.__data.out_type.get_index_no()
-
-                for wids, type_, changer in zip(
-                    self.__data_labels, self.__stat.data_name[2:],
-                    (src_ni, src_ni, src_ni, in_ni, out_ni, src_ni, src_ni)
-                ):
-                    for b, wid in enumerate(wids):
-                        wid.setText(str(data[type_][changer[b]]))
-
-                for wid, sum_ in zip(self.__sum_labels, sums):
-                    wid.setText(sum_)
+                self.__set_stat(raw_data)
         else:  # if not month -> clear
             for wids in self.__data_labels:
                 for wid in wids:
                     wid.setText('')
             for wid in self.__sum_labels:
                 wid.setText('')
+
+    def __set_week(self, date=None):
+        if not date:
+            date = self.calInterval.selectedDate()
+        start_date = self.__first_day_of_week(date).toPython()
+        end_date = start_date + datetime.timedelta(6)
+        self.__set_stat(self.__stat.get_intv(start_date, end_date))
+
+    def __set_day(self, date=None):
+        if not date:
+            date = self.calInterval.selectedDate()
+        start_date = end_date = date.toPython()
+        self.__set_stat(self.__stat.get_intv(start_date, end_date))
 
     def set_stat_type(self):
         # pylint: disable=attribute-defined-outside-init
@@ -784,6 +838,7 @@ class TabStatM(QWidget, Ui_TabStatM):
             wid.setText('')
 
         self.cbMonth.currentTextChanged.connect(self.__set_month)
+        self.rbMonthly.setChecked(True)
 
 
 class MainWin(QMainWindow, Ui_MainWin):

@@ -7,8 +7,8 @@ from PySide6.QtWidgets import (
     QWidget, QGroupBox, QTabWidget, QScrollArea,
     QVBoxLayout, QHBoxLayout, QGridLayout,
     QSizePolicy, QSpacerItem,
-    QLabel, QPushButton, QCheckBox,
-    QPlainTextEdit, QLineEdit, QComboBox,
+    QLabel, QPushButton, QRadioButton, QCheckBox,
+    QPlainTextEdit, QLineEdit, QComboBox, QCalendarWidget,
     QListView, QTreeView,
     QMenuBar, QMenu, QStatusBar, QProgressBar
 )
@@ -25,6 +25,10 @@ sizePolicy_PF.setVerticalStretch(0)
 sizePolicy_FF = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 sizePolicy_FF.setHorizontalStretch(0)
 sizePolicy_FF.setVerticalStretch(0)
+
+sizePolicy_EF = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+sizePolicy_EF.setHorizontalStretch(0)
+sizePolicy_EF.setVerticalStretch(0)
 
 sizePolicy_EE = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 sizePolicy_EE.setHorizontalStretch(0)
@@ -447,130 +451,66 @@ class Ui_TabStatM:
         self.glCent.setObjectName(u"glCent")
 
 
-        ###############################################
-        #                Groupbox order               #
-        # Month, Income, Outcome, Current, Move, Stat #
-        ###############################################
+        ######################
+        # Groupbox positions #
+        #      Interval      #
+        #        Stat        #
+        # Current || Outcome #
+        # Income  ||  Move   #
+        ######################
 
 
-        # Month groupbox
-        self.gbMonth = QGroupBox(self.widCent)
-        self.gbMonth.setObjectName(u"gbMonth")
-        sizePolicy_PF.setHeightForWidth(self.gbMonth.sizePolicy().hasHeightForWidth())
-        self.gbMonth.setSizePolicy(sizePolicy_PF)
-        self.hlMonth = QHBoxLayout(self.gbMonth)
-        self.hlMonth.setObjectName(u"hlMonth")
+        # Interval groupbox
+        self.gbInterval = QGroupBox(self.widCent)
+        self.gbInterval.setObjectName(u"gbInterval")
+        sizePolicy_PF.setHeightForWidth(self.gbInterval.sizePolicy().hasHeightForWidth())
+        self.gbInterval.setSizePolicy(sizePolicy_PF)
+        self.glInterval = QGridLayout(self.gbInterval)
+        self.glInterval.setObjectName(u"glInterval")
 
-        self.lbTitleMonth = QLabel(self.gbMonth)
-        self.lbTitleMonth.setObjectName(u"lbTitleMonth")
-        self.lbTitleMonth.setAlignment(Qt.AlignCenter)
-        self.hlMonth.addWidget(self.lbTitleMonth)
+        self.widIntvIn = QWidget(self.gbInterval)
+        sizePolicy_EF.setHeightForWidth(self.widIntvIn.sizePolicy().hasHeightForWidth())
+        self.widIntvIn.setSizePolicy(sizePolicy_EF)
+        self.hlIntvIn = QHBoxLayout(self.widIntvIn)
+        self.hlIntvIn.setContentsMargins(0, 0, 0, 0)
 
-        self.cbMonth = QComboBox(self.gbMonth)
+        self.rbMonthly = QRadioButton(self.gbInterval)
+        self.rbMonthly.setObjectName('rbMonthly')
+        sizePolicy_FF.setHeightForWidth(self.rbMonthly.sizePolicy().hasHeightForWidth())
+        self.rbMonthly.setSizePolicy(sizePolicy_FF)
+        self.hlIntvIn.addWidget(self.rbMonthly)
+
+        self.rbWeekly = QRadioButton(self.gbInterval)
+        self.rbWeekly.setObjectName('rbWeekly')
+        sizePolicy_FF.setHeightForWidth(self.rbWeekly.sizePolicy().hasHeightForWidth())
+        self.rbWeekly.setSizePolicy(sizePolicy_FF)
+        self.hlIntvIn.addWidget(self.rbWeekly)
+
+        self.rbDaily = QRadioButton(self.gbInterval)
+        self.rbDaily.setObjectName('rbDaily')
+        sizePolicy_FF.setHeightForWidth(self.rbDaily.sizePolicy().hasHeightForWidth())
+        self.rbDaily.setSizePolicy(sizePolicy_FF)
+        self.hlIntvIn.addWidget(self.rbDaily)
+
+        self.glInterval.addWidget(self.widIntvIn, 0, 0, 1, 1)
+
+        self.cbMonth = QComboBox(self.gbInterval)
         self.cbMonth.setObjectName(u"cbMonth")
-        self.hlMonth.addWidget(self.cbMonth)
+        sizePolicy_EF.setHeightForWidth(self.cbMonth.sizePolicy().hasHeightForWidth())
+        self.cbMonth.setSizePolicy(sizePolicy_EF)
+        self.glInterval.addWidget(self.cbMonth, 0, 1, 1, 1)
 
-        self.glCent.addWidget(self.gbMonth, 0, 0, 1, 2)
-        # end Month
+        self.calInterval = QCalendarWidget(self.gbInterval)
+        self.calInterval.setObjectName(u"calInterval")
+        sizePolicy_EF.setHeightForWidth(self.calInterval.sizePolicy().hasHeightForWidth())
+        self.calInterval.setSizePolicy(sizePolicy_EF)
+        self.calInterval.setVerticalHeaderFormat(QCalendarWidget.NoVerticalHeader)
+        self.calInterval.setGridVisible(True)
+        self.calInterval.hide()
+        self.glInterval.addWidget(self.calInterval, 0, 1, 1, 1)
 
-
-        # Income groupbox
-        self.gbIncome = QGroupBox(self.widCent)
-        self.gbIncome.setObjectName(u"gbIncome")
-        self.glIncome = QGridLayout(self.gbIncome)
-        self.glIncome.setObjectName(u"glIncome")
-
-        self.lbTitleIncome = []
-        for x, y, w, h in ((0, 0, 1, 2), (1, 0, 1, 2), (1, 2, 1, 2)):
-            lb = QLabel(self.gbIncome)
-            lb.setAlignment(Qt.AlignCenter)
-            lb.setObjectName(f'lbTitleIncome{x+1}{y+1}')
-            self.glIncome.addWidget(lb, x, y, w, h)
-            self.lbTitleIncome.append(lb)
-
-        self.lbSumIncome = QLabel(self.gbIncome)
-        self.lbSumIncome.setObjectName(u"lbSumIncome")
-        self.lbSumIncome.setAlignment(Qt.AlignCenter)
-        self.glIncome.addWidget(self.lbSumIncome, 0, 2, 1, 2)
-
-        self.glCent.addWidget(self.gbIncome, 3, 0, 1, 1)
-        # end Income
-
-
-        # Outcome groupbox
-        self.gbOutcome = QGroupBox(self.widCent)
-        self.gbOutcome.setObjectName(u"gbOutcome")
-        self.glOutcome = QGridLayout(self.gbOutcome)
-        self.glOutcome.setObjectName(u"glOutcome")
-
-        self.lbTitleOutcome = []
-        for x, y, w, h in ((0, 0, 1, 2), (1, 0, 1, 2), (1, 2, 1, 2)):
-            lb = QLabel(self.gbOutcome)
-            lb.setAlignment(Qt.AlignCenter)
-            lb.setObjectName(f'lbTitleOutcome{x+1}{y+1}')
-            self.glOutcome.addWidget(lb, x, y, w, h)
-            self.lbTitleOutcome.append(lb)
-
-        self.lbSumOutcome = QLabel(self.gbOutcome)
-        self.lbSumOutcome.setObjectName(u"lbSumOutcome")
-        self.lbSumOutcome.setAlignment(Qt.AlignCenter)
-        self.glOutcome.addWidget(self.lbSumOutcome, 0, 2, 1, 2)
-
-        self.glCent.addWidget(self.gbOutcome, 2, 1, 1, 1)
-        # end Outcome
-
-
-        # Current groupbox
-        self.gbCurrent = QGroupBox(self.widCent)
-        self.gbCurrent.setObjectName(u"gbCurrent")
-        self.glCurrent = QGridLayout(self.gbCurrent)
-        self.glCurrent.setObjectName(u"glCurrent")
-
-        self.lbTitleCurrent = QLabel(self.gbCurrent)
-        self.lbTitleCurrent.setObjectName(u"lbTitleCurrent")
-        self.lbTitleCurrent.setAlignment(Qt.AlignCenter)
-        self.glCurrent.addWidget(self.lbTitleCurrent, 0, 0, 1, 1)
-
-        self.lbSumCurrent = QLabel(self.gbCurrent)
-        self.lbSumCurrent.setObjectName(u"lbSumCurrent")
-        self.lbSumCurrent.setAlignment(Qt.AlignCenter)
-        self.glCurrent.addWidget(self.lbSumCurrent, 0, 1, 1, 1)
-
-        self.lbTitleCash = QLabel(self.gbCurrent)
-        self.lbTitleCash.setObjectName(u"lbTitleCash")
-        self.lbTitleCash.setAlignment(Qt.AlignCenter)
-        self.glCurrent.addWidget(self.lbTitleCash, 1, 0, 1, 1)
-
-        self.lbSumCash = QLabel(self.gbCurrent)
-        self.lbSumCash.setObjectName(u"lbSumCash")
-        self.lbSumCash.setAlignment(Qt.AlignCenter)
-        self.glCurrent.addWidget(self.lbSumCash, 1, 1, 1, 1)
-
-        self.glCent.addWidget(self.gbCurrent, 2, 0, 1, 1)
-        # end Current
-
-
-        # Move groupbox
-        self.gbMove = QGroupBox(self.widCent)
-        self.gbMove.setObjectName(u"gbMove")
-        self.glMove = QGridLayout(self.gbMove)
-        self.glMove.setObjectName(u"glMove")
-
-        self.lbTitleMove = []
-        for x, y, w, h in ((0, 0, 1, 2), (1, 0, 1, 2), (1, 2, 1, 2)):
-            lb = QLabel(self.gbMove)
-            lb.setAlignment(Qt.AlignCenter)
-            lb.setObjectName(f'lbTitleMove{x+1}{y+1}')
-            self.glMove.addWidget(lb, x, y, w, h)
-            self.lbTitleMove.append(lb)
-
-        self.lbSumMove = QLabel(self.gbMove)
-        self.lbSumMove.setObjectName(u"lbSumMove")
-        self.lbSumMove.setAlignment(Qt.AlignCenter)
-        self.glMove.addWidget(self.lbSumMove, 0, 2, 1, 2)
-
-        self.glCent.addWidget(self.gbMove, 3, 1, 1, 1)
-        # end Move
+        self.glCent.addWidget(self.gbInterval, 0, 0, 1, 2)
+        # end Interval
 
 
         # Stat groupbox
@@ -627,6 +567,105 @@ class Ui_TabStatM:
         # end Stat
 
 
+        # Current groupbox
+        self.gbCurrent = QGroupBox(self.widCent)
+        self.gbCurrent.setObjectName(u"gbCurrent")
+        self.glCurrent = QGridLayout(self.gbCurrent)
+        self.glCurrent.setObjectName(u"glCurrent")
+
+        self.lbTitleCurrent = QLabel(self.gbCurrent)
+        self.lbTitleCurrent.setObjectName(u"lbTitleCurrent")
+        self.lbTitleCurrent.setAlignment(Qt.AlignCenter)
+        self.glCurrent.addWidget(self.lbTitleCurrent, 0, 0, 1, 1)
+
+        self.lbSumCurrent = QLabel(self.gbCurrent)
+        self.lbSumCurrent.setObjectName(u"lbSumCurrent")
+        self.lbSumCurrent.setAlignment(Qt.AlignCenter)
+        self.glCurrent.addWidget(self.lbSumCurrent, 0, 1, 1, 1)
+
+        self.lbTitleCash = QLabel(self.gbCurrent)
+        self.lbTitleCash.setObjectName(u"lbTitleCash")
+        self.lbTitleCash.setAlignment(Qt.AlignCenter)
+        self.glCurrent.addWidget(self.lbTitleCash, 1, 0, 1, 1)
+
+        self.lbSumCash = QLabel(self.gbCurrent)
+        self.lbSumCash.setObjectName(u"lbSumCash")
+        self.lbSumCash.setAlignment(Qt.AlignCenter)
+        self.glCurrent.addWidget(self.lbSumCash, 1, 1, 1, 1)
+
+        self.glCent.addWidget(self.gbCurrent, 2, 0, 1, 1)
+        # end Current
+
+
+        # Income groupbox
+        self.gbIncome = QGroupBox(self.widCent)
+        self.gbIncome.setObjectName(u"gbIncome")
+        self.glIncome = QGridLayout(self.gbIncome)
+        self.glIncome.setObjectName(u"glIncome")
+
+        self.lbTitleIncome = []
+        for x, y, w, h in ((0, 0, 1, 2), (1, 0, 1, 2), (1, 2, 1, 2)):
+            lb = QLabel(self.gbIncome)
+            lb.setAlignment(Qt.AlignCenter)
+            lb.setObjectName(f'lbTitleIncome{x+1}{y+1}')
+            self.glIncome.addWidget(lb, x, y, w, h)
+            self.lbTitleIncome.append(lb)
+
+        self.lbSumIncome = QLabel(self.gbIncome)
+        self.lbSumIncome.setObjectName(u"lbSumIncome")
+        self.lbSumIncome.setAlignment(Qt.AlignCenter)
+        self.glIncome.addWidget(self.lbSumIncome, 0, 2, 1, 2)
+
+        self.glCent.addWidget(self.gbIncome, 3, 0, 1, 1)
+        # end Income
+
+
+        # Outcome groupbox
+        self.gbOutcome = QGroupBox(self.widCent)
+        self.gbOutcome.setObjectName(u"gbOutcome")
+        self.glOutcome = QGridLayout(self.gbOutcome)
+        self.glOutcome.setObjectName(u"glOutcome")
+
+        self.lbTitleOutcome = []
+        for x, y, w, h in ((0, 0, 1, 2), (1, 0, 1, 2), (1, 2, 1, 2)):
+            lb = QLabel(self.gbOutcome)
+            lb.setAlignment(Qt.AlignCenter)
+            lb.setObjectName(f'lbTitleOutcome{x+1}{y+1}')
+            self.glOutcome.addWidget(lb, x, y, w, h)
+            self.lbTitleOutcome.append(lb)
+
+        self.lbSumOutcome = QLabel(self.gbOutcome)
+        self.lbSumOutcome.setObjectName(u"lbSumOutcome")
+        self.lbSumOutcome.setAlignment(Qt.AlignCenter)
+        self.glOutcome.addWidget(self.lbSumOutcome, 0, 2, 1, 2)
+
+        self.glCent.addWidget(self.gbOutcome, 2, 1, 1, 1)
+        # end Outcome
+
+
+        # Move groupbox
+        self.gbMove = QGroupBox(self.widCent)
+        self.gbMove.setObjectName(u"gbMove")
+        self.glMove = QGridLayout(self.gbMove)
+        self.glMove.setObjectName(u"glMove")
+
+        self.lbTitleMove = []
+        for x, y, w, h in ((0, 0, 1, 2), (1, 0, 1, 2), (1, 2, 1, 2)):
+            lb = QLabel(self.gbMove)
+            lb.setAlignment(Qt.AlignCenter)
+            lb.setObjectName(f'lbTitleMove{x+1}{y+1}')
+            self.glMove.addWidget(lb, x, y, w, h)
+            self.lbTitleMove.append(lb)
+
+        self.lbSumMove = QLabel(self.gbMove)
+        self.lbSumMove.setObjectName(u"lbSumMove")
+        self.lbSumMove.setAlignment(Qt.AlignCenter)
+        self.glMove.addWidget(self.lbSumMove, 0, 2, 1, 2)
+
+        self.glCent.addWidget(self.gbMove, 3, 1, 1, 1)
+        # end Move
+
+
         self.scCent.setWidget(self.widCent)
 
         self.retranslateUi()
@@ -635,8 +674,11 @@ class Ui_TabStatM:
     # setupUi
 
     def retranslateUi(self):
-        self.gbMonth.setTitle(QCoreApplication.translate("TabStatM", u"\ud1b5\uacc4 \uc124\uc815", None))
-        self.lbTitleMonth.setText(QCoreApplication.translate("TabStatM", u"\uc5f0-\uc6d4", None))
+        self.gbInterval.setTitle(QCoreApplication.translate("TabStatM", u"\uae30\uac04 \uc124\uc815", None))
+        self.rbMonthly.setText(QCoreApplication.translate("TabStatM", u"\uc6d4\uac04", None))
+        self.rbWeekly.setText(QCoreApplication.translate("TabStatM", u"\uc8fc\uac04", None))
+        self.rbDaily.setText(QCoreApplication.translate("TabStatM", u"\uc77c\uac04", None))
+        self.rbMonthly.setChecked(True)
 
         income_txt = ('총액', '요목별', '원천별')
         self.gbIncome.setTitle(QCoreApplication.translate("TabStatM", u"\uc218\uc785", None))
