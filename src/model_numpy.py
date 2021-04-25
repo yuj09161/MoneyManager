@@ -802,8 +802,6 @@ class Stat_Data(QStandardItemModel):
         end_diff = end.toordinal() - self.__std_day
         end_month_diff = first_day_of_end_month.toordinal() - self.__std_day
 
-        print(start, end, first_day_of_end_month)
-
         intv_data = self.__data[
             (self.__data['date'] >= start_diff)
             & (self.__data['date'] <= end_diff)
@@ -828,7 +826,6 @@ class Stat_Data(QStandardItemModel):
         last_current = self.__stat[
             self.__month_list.index((y, m))
         ]['current']
-        print(y, m, last_current)
         result = np.zeros((1,), self.__data_form)[0]
 
         # loop: in_type

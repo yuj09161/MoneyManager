@@ -701,6 +701,7 @@ class TabStatM(QWidget, Ui_TabStatM):
             date = self.calInterval.selectedDate()
         start_date = self.__first_day_of_week(date).toPython()
         end_date = start_date + datetime.timedelta(6)
+        self.calInterval.setSelectedDate(start_date)
         self.__set_stat(self.__stat.get_intv(start_date, end_date))
 
     def __set_day(self, date=None):
@@ -907,7 +908,7 @@ class MainWin(QMainWindow, Ui_MainWin):
             self.tabStatS, u"\uac04\ub7b5\ud1b5\uacc4"
         )
         self.tabWidget.addTab(
-            self.tabStatM, u"\uc6d4\ubcc4\ud1b5\uacc4"
+            self.tabStatM, u"\uc0c1\uc138\ud1b5\uacc4"
         )
 
         # set models' parent
