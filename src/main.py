@@ -762,6 +762,8 @@ class TabStatM(QWidget, Ui_TabStatM):
         self.__sum_labels = (
             self.lbSumIncome,
             self.lbSumOutcome,
+            self.lbInStat,
+            self.lbOutStat,
             self.lbSumCurrent,
             self.lbSumCash,
             self.lbSumMove,

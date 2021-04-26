@@ -777,7 +777,8 @@ class Stat_Data(QStandardItemModel):
             ness = d_c['outcome_typ'][self.__ness_dst].sum()
 
             return (d_c, map(str, (
-                income, outcome, current, cash, move,
+                income, outcome, income, outcome,
+                current, cash, move,
                 net, ness, outcome - ness
             )))
 
@@ -898,7 +899,8 @@ class Stat_Data(QStandardItemModel):
         ness = result['outcome_typ'][self.__ness_dst].sum()
 
         return (result, map(str, (
-            income, outcome, current, cash, move,
+            income, outcome, income, outcome,
+            current, cash, move,
             net, ness, outcome - ness
         )))
 

@@ -521,47 +521,75 @@ class Ui_TabStatM:
         self.glStat = QGridLayout(self.gbStat)
         self.glStat.setObjectName(u"glStat")
 
+        self.lbTitleInStat = QLabel(self.gbStat)
+        self.lbTitleInStat.setObjectName(u"lbTitleInStat")
+        sizePolicy_PF.setHeightForWidth(self.lbTitleInStat.sizePolicy().hasHeightForWidth())
+        self.lbTitleInStat.setSizePolicy(sizePolicy_PF)
+        self.lbTitleInStat.setAlignment(Qt.AlignCenter)
+        self.glStat.addWidget(self.lbTitleInStat, 0, 0, 1, 1)
+
+        self.lbTitleOutStat = QLabel(self.gbStat)
+        self.lbTitleOutStat.setObjectName(u"lbTitleOutStat")
+        sizePolicy_PF.setHeightForWidth(self.lbTitleOutStat.sizePolicy().hasHeightForWidth())
+        self.lbTitleOutStat.setSizePolicy(sizePolicy_PF)
+        self.lbTitleOutStat.setAlignment(Qt.AlignCenter)
+        self.glStat.addWidget(self.lbTitleOutStat, 0, 1, 1, 1)
+
         self.lbTitleNet = QLabel(self.gbStat)
         self.lbTitleNet.setObjectName(u"lbTitleNet")
         sizePolicy_PF.setHeightForWidth(self.lbTitleNet.sizePolicy().hasHeightForWidth())
         self.lbTitleNet.setSizePolicy(sizePolicy_PF)
         self.lbTitleNet.setAlignment(Qt.AlignCenter)
-        self.glStat.addWidget(self.lbTitleNet, 0, 0, 1, 1)
+        self.glStat.addWidget(self.lbTitleNet, 0, 2, 1, 1)
 
         self.lbTitleOut1 = QLabel(self.gbStat)
         self.lbTitleOut1.setObjectName(u"lbTitleOut1")
         sizePolicy_PF.setHeightForWidth(self.lbTitleOut1.sizePolicy().hasHeightForWidth())
         self.lbTitleOut1.setSizePolicy(sizePolicy_PF)
         self.lbTitleOut1.setAlignment(Qt.AlignCenter)
-        self.glStat.addWidget(self.lbTitleOut1, 0, 1, 1, 1)
+        self.glStat.addWidget(self.lbTitleOut1, 0, 3, 1, 1)
 
         self.lbTitleOut2 = QLabel(self.gbStat)
         self.lbTitleOut2.setObjectName(u"lbTitleOut2")
         sizePolicy_PF.setHeightForWidth(self.lbTitleOut2.sizePolicy().hasHeightForWidth())
         self.lbTitleOut2.setSizePolicy(sizePolicy_PF)
         self.lbTitleOut2.setAlignment(Qt.AlignCenter)
-        self.glStat.addWidget(self.lbTitleOut2, 0, 2, 1, 1)
+        self.glStat.addWidget(self.lbTitleOut2, 0, 4, 1, 1)
+
+        self.lbInStat = QLabel(self.gbStat)
+        self.lbInStat.setObjectName(u"lbInStat")
+        sizePolicy_PF.setHeightForWidth(self.lbInStat.sizePolicy().hasHeightForWidth())
+        self.lbInStat.setSizePolicy(sizePolicy_PF)
+        self.lbInStat.setAlignment(Qt.AlignCenter)
+        self.glStat.addWidget(self.lbInStat, 1, 0, 1, 1)
+
+        self.lbOutStat = QLabel(self.gbStat)
+        self.lbOutStat.setObjectName(u"lbOutStat")
+        sizePolicy_PF.setHeightForWidth(self.lbOutStat.sizePolicy().hasHeightForWidth())
+        self.lbOutStat.setSizePolicy(sizePolicy_PF)
+        self.lbOutStat.setAlignment(Qt.AlignCenter)
+        self.glStat.addWidget(self.lbOutStat, 1, 1, 1, 1)
 
         self.lbNet = QLabel(self.gbStat)
         self.lbNet.setObjectName(u"lbNet")
         sizePolicy_PF.setHeightForWidth(self.lbNet.sizePolicy().hasHeightForWidth())
         self.lbNet.setSizePolicy(sizePolicy_PF)
         self.lbNet.setAlignment(Qt.AlignCenter)
-        self.glStat.addWidget(self.lbNet, 1, 0, 1, 1)
+        self.glStat.addWidget(self.lbNet, 1, 2, 1, 1)
 
         self.lbOut1 = QLabel(self.gbStat)
         self.lbOut1.setObjectName(u"lbOut1")
         sizePolicy_PF.setHeightForWidth(self.lbOut1.sizePolicy().hasHeightForWidth())
         self.lbOut1.setSizePolicy(sizePolicy_PF)
         self.lbOut1.setAlignment(Qt.AlignCenter)
-        self.glStat.addWidget(self.lbOut1, 1, 1, 1, 1)
+        self.glStat.addWidget(self.lbOut1, 1, 3, 1, 1)
 
         self.lbOut2 = QLabel(self.gbStat)
         self.lbOut2.setObjectName(u"lbOut2")
         sizePolicy_PF.setHeightForWidth(self.lbOut2.sizePolicy().hasHeightForWidth())
         self.lbOut2.setSizePolicy(sizePolicy_PF)
         self.lbOut2.setAlignment(Qt.AlignCenter)
-        self.glStat.addWidget(self.lbOut2, 1, 2, 1, 1)
+        self.glStat.addWidget(self.lbOut2, 1, 4, 1, 1)
 
         self.glCent.addWidget(self.gbStat, 1, 0, 1, 2)
         # end Stat
@@ -699,9 +727,18 @@ class Ui_TabStatM:
         for wid, txt in zip(self.lbTitleMove, move_txt):
             wid.setText(txt)
 
-        stat_txt = ('순수익', '필수지출', '초과지출')
+        stat_txt = ('수익', '지출', '순수익', '필수지출', '초과지출')
         self.gbStat.setTitle(QCoreApplication.translate("TabStatM", u"\ud1b5\uacc4", None))
-        for wid, txt in zip((self.lbTitleNet, self.lbTitleOut1, self.lbTitleOut2), stat_txt):
+        for wid, txt in zip(
+            (
+                self.lbTitleInStat,
+                self.lbTitleOutStat,
+                self.lbTitleNet,
+                self.lbTitleOut1,
+                self.lbTitleOut2
+            ),
+            stat_txt
+        ):
             wid.setText(txt)
     # retranslateUi
 
