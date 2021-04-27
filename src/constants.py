@@ -1,11 +1,11 @@
 import os
 import sys
-import locale
+from locale import getpreferredencoding
 from multiprocessing import cpu_count
 
 
 # system settings & information
-ENCODING = locale.getpreferredencoding()
+ENCODING = getpreferredencoding()
 LINESEP = os.linesep
 PATHSEP = os.path.sep
 USER_DIR = os.path.expanduser('~') + PATHSEP
@@ -32,5 +32,5 @@ else:
     ZIPAPP_FILE = ''
 PROGRAM_DIR += PATHSEP
 
-# module specific constant(s)
+# Program specific constants
 DEFAULT_STD_DAY = 730120
