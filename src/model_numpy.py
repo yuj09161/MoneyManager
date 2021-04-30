@@ -362,6 +362,7 @@ class Data(QStandardItemModel):
         return data
 
     def import_data(self, file_type, raw_data, types):
+        # Todo: Implement unpacker
         data = {}
         data['version'] = self.__version
         raw_sources = data['sources'] = types['sources']
@@ -389,6 +390,7 @@ class Data(QStandardItemModel):
         # self.__unpacker(data)
 
     def export_data(self, file_type):
+        # Todo: Implement packer
         # pylint: disable=unreachable
         raise NotImplementedError('packer not implemented')
         data = self.__packer()
@@ -526,7 +528,8 @@ class Data(QStandardItemModel):
         self.row_count -= 1
         return data
 
-    def get_data(self):
+    @property
+    def raw(self):
         return self.__data
 
     def get_at(self, row_no):
@@ -572,6 +575,7 @@ class Data(QStandardItemModel):
 
 
 class Stat_Data(QStandardItemModel):
+    # Todo: fix error when not load file
     # pylint: disable=attribute-defined-outside-init
     __header_text = (
         '연월', '총 재산', '현금성',
@@ -591,7 +595,8 @@ class Stat_Data(QStandardItemModel):
 
         self.months = SimpleCombo()
 
-        self.__initalized = False
+        self.__type_setted = False
+        self.__loaded = False
         self.__data = None
 
     def set_type(self, sources, in_type, out_type, is_cash, is_ness, std_day):
@@ -619,8 +624,9 @@ class Stat_Data(QStandardItemModel):
             ('move_out', 'int32', (sources_cnt,))
         ]
         self.__empty_arr = np.zeros((1,), self.__data_form)
+        self.__stat = np.zeros((0,), self.__data_form)
 
-        self.__initalized = True
+        self.__type_setted = True
 
     def __caluclate_summary(self, d_c):
         cash = d_c['current'][self.__cash_src].sum()
@@ -635,13 +641,85 @@ class Stat_Data(QStandardItemModel):
 
         if c3 != c5 or c4 != c6 or c7 != c8:
             raise ValueError
-        else:
-            # sum of (current, cash, income, outcome, net, move)
-            return c2, cash, c3, c4, c3-c4, c7  # noqa: E226
+        # sum of (current, cash, income, outcome, net, move)
+        return c2, cash, c3, c4, c3-c4, c7  # noqa: E226
+
+    def __get_intv_sum(
+        self, data: np.ndarray, last_current: np.ndarray = None
+    ) -> np.ndarray:
+        """
+        Get sum of all rows(
+        income_src, outcome_src, income_typ, outcome_typ, move_in, move_out
+        ) of the array
+
+        Args:
+            data (np.ndarray):
+                array to calculate sums
+            last_current (np.ndarray, optional):
+                can extract as last_data['current']
+                if omitted, does not calculate current
+                (will be current row is filled by 0)
+
+        Returns:
+            np.ndarray:
+                sums of rows (dtype: same as self.__data_form)
+        """
+        result = np.zeros((1,), self.__data_form)[0]
+        do_calculate_current = last_current is not None
+
+        # loop: in_type
+        for t in self.__in_type:
+            result['income_typ'][t] = data[(
+                (data['type'] == 0) & (data['det'] == t)
+            )]['val'].sum()
+
+        # loop: out_type
+        for t in self.__out_type:
+            result['outcome_typ'][t] = data[(
+                (data['type'] == 1) & (data['det'] == t)
+            )]['val'].sum()
+
+        # loop: sources
+        for s in self.__sources:
+            # income
+            result['income_src'][s] = sum_in_src = data[(
+                (data['type'] == 0) & (data['src'] == s)
+            )]['val'].sum()
+
+            # outcome
+            result['outcome_src'][s] = sum_out_src = data[(
+                (data['type'] == 1) & (data['src'] == s)
+            )]['val'].sum()
+
+            # move: out
+            result['move_out'][s] = sum_mv_out = data[(
+                (data['type'] == 2) & (data['src'] == s)
+            )]['val'].sum()
+
+            # move: in
+            result['move_in'][s] = sum_mv_in = data[(
+                (data['type'] == 2) & (data['det'] == s)
+            )]['val'].sum()
+
+            if do_calculate_current:
+                # first
+                sum_f = data[(
+                    (data['type'] == 3) & (data['src'] == s)
+                )]['val'].sum()
+
+                # calculate current
+                result['current'][s] = (
+                    sum_in_src.astype(np.int64)
+                    + sum_mv_in
+                    - sum_out_src
+                    - sum_mv_out
+                    + last_current[s]
+                    + sum_f
+                )
+        return result
 
     def set_data(self, data):
-        if not self.__initalized:
-            raise NotInitalizedError
+        assert self.__type_setted, 'Type is not setted'
 
         self.__data = data
         self.__first_date = datetime.date.fromordinal(
@@ -672,9 +750,6 @@ class Stat_Data(QStandardItemModel):
         real_month = []
         last_current = self.__empty_arr[0]['current']
         for k, (y, m) in enumerate(self.__month_list):
-            self.__stat[k]['year'] = y
-            self.__stat[k]['month'] = m
-
             if m == 12:
                 next_m = (y + 1, 1)
             else:
@@ -689,63 +764,16 @@ class Stat_Data(QStandardItemModel):
             )]
 
             if not month_data.size:
+                self.__stat[k]['year'] = y
+                self.__stat[k]['month'] = m
                 self.__stat[k]['current'] = last_current.copy()
                 continue
 
-            d_c = self.__stat[k]
-
-            # loop: in_type
-            for d in self.__in_type:
-                d_c['income_typ'][d] = month_data[(
-                    (month_data['type'] == 0) & (month_data['det'] == d)
-                )]['val'].sum()
-
-            # loop: out_type
-            for d in self.__out_type:
-                d_c['outcome_typ'][d] = month_data[(
-                    (month_data['type'] == 1) & (month_data['det'] == d)
-                )]['val'].sum()
-
-            # loop: sources
-            for s in self.__sources:
-                # income
-                sum_in_src = month_data[(
-                    (month_data['type'] == 0) & (month_data['src'] == s)
-                )]['val'].sum()
-                d_c['income_src'][s] = sum_in_src
-
-                # outcome
-                sum_out_src = month_data[(
-                    (month_data['type'] == 1) & (month_data['src'] == s)
-                )]['val'].sum()
-                d_c['outcome_src'][s] = sum_out_src
-
-                # move: out
-                sum_mv_out = month_data[(
-                    (month_data['type'] == 2) & (month_data['src'] == s)
-                )]['val'].sum()
-                d_c['move_out'][s] = sum_mv_out
-
-                # move: in
-                sum_mv_in = month_data[(
-                    (month_data['type'] == 2) & (month_data['det'] == s)
-                )]['val'].sum()
-                d_c['move_in'][s] = sum_mv_in
-
-                # first
-                sum_f = month_data[(
-                    (month_data['type'] == 3) & (month_data['src'] == s)
-                )]['val'].sum()
-
-                d_c['current'][s] = (
-                    sum_in_src.astype(np.int64)
-                    + sum_mv_in
-                    - sum_out_src
-                    - sum_mv_out
-                    + last_current[s]
-                    + sum_f
-                )
-            # end sources loop
+            d_c = self.__get_intv_sum(
+                month_data, last_current
+            )
+            d_c['year'] = y
+            d_c['month'] = m
 
             # calculate summary
             current, cash, income, outcome, net, move\
@@ -763,12 +791,18 @@ class Stat_Data(QStandardItemModel):
             last_current = d_c['current']
             real_month.append(f'{y}-{m}')
 
+            # set stat data
+            self.__stat[k] = d_c
+
         self.months.set_data(list(reversed(real_month)))
+        self.__loaded = True
 
     def get_raw(self):
         return self.__stat
 
     def get_month(self, month):
+        assert self.__loaded,\
+            'Stat does not exist (Not loaded or not add any data)'
         if month:
             d_c = self.__stat[self.__month_list.index(month)].copy()
 
@@ -782,19 +816,37 @@ class Stat_Data(QStandardItemModel):
                 net, ness, outcome - ness
             )))
 
+    def get_current_at_now(self):
+        assert self.__loaded,\
+            'Stat does not exist (Not loaded or not add any data)'
+        currents = self.__stat[-1]['current']
+        return currents, currents.sum(), currents[self.__cash_src].sum()
+
     def get_intv(
-        self,
-        start: datetime.date,
-        end: datetime.date
-    ):
+        self, data: Data, start: datetime.date, end: datetime.date
+    ) -> tuple:
         """
         calculate income, outcome and move in start <= day <= end
         and calculate current money at end date
 
         Args:
-            start (datetime.date): date of interval start
-            end (datetime.date): date of interval end
+            data (Data):
+                Data object
+            start (datetime.date):
+                date of interval start
+            end (datetime.date):
+                date of interval end
+
+        Returns:
+            tuple: contains current money(ndarray), and summary(str)
+                (
+                    result,
+                    (income, outcome, income, outcome, current,
+                     cash, move, net, ness, outcome - ness)
+                )
         """
+        assert self.__loaded,\
+            'Stat does not exist (Not loaded or not add any data)'
         assert isinstance(start, datetime.date)
         assert isinstance(end, datetime.date)
 
@@ -803,14 +855,14 @@ class Stat_Data(QStandardItemModel):
         end_diff = end.toordinal() - self.__std_day
         end_month_diff = first_day_of_end_month.toordinal() - self.__std_day
 
-        intv_data = self.__data[
-            (self.__data['date'] >= start_diff)
-            & (self.__data['date'] <= end_diff)
+        intv_data = data[
+            (data['date'] >= start_diff) & (data['date'] <= end_diff)
         ]
-        end_month_data = self.__data[
-            (self.__data['date'] >= end_month_diff)
-            & (self.__data['date'] <= end_diff)
+        end_month_data = data[
+            (data['date'] >= end_month_diff) & (data['date'] <= end_diff)
         ]
+
+        # get nearest available stat
         y = end.year
         m = end.month
         if m == 1:
@@ -818,80 +870,26 @@ class Stat_Data(QStandardItemModel):
             m = 12
         else:
             m -= 1
-        while (y, m) not in self.__month_list:
+        while (y, m) not in self.__month_list and y > 0:
             if m == 1:
                 y -= 1
                 m = 12
             else:
                 m -= 1
-        last_current = self.__stat[
-            self.__month_list.index((y, m))
-        ]['current']
-        result = np.zeros((1,), self.__data_form)[0]
 
-        # loop: in_type
-        for t in self.__in_type:
-            result['income_typ'][t] = intv_data[(
-                (intv_data['type'] == 0) & (intv_data['det'] == t)
-            )]['val'].sum()
+        # get nearest available previous current
+        if y > 0:
+            last_current = self.__stat[
+                self.__month_list.index((y, m))
+            ]['current']
+        else:
+            last_current = self.__empty_arr[0]['current']
 
-        # loop: out_type
-        for t in self.__out_type:
-            result['outcome_typ'][t] = intv_data[(
-                (intv_data['type'] == 1) & (intv_data['det'] == t)
-            )]['val'].sum()
-
-        # loop: sources
-        for s in self.__sources:
-            # income, outcome and move in start <= day <= end
-            # income
-            result['income_src'][s] = intv_data[(
-                (intv_data['type'] == 0) & (intv_data['src'] == s)
-            )]['val'].sum()
-            # outcome
-            result['outcome_src'][s] = intv_data[(
-                (intv_data['type'] == 1) & (intv_data['src'] == s)
-            )]['val'].sum()
-            # move: out
-            result['move_out'][s] = intv_data[(
-                (intv_data['type'] == 2) & (intv_data['src'] == s)
-            )]['val'].sum()
-            # move: in
-            result['move_in'][s] = intv_data[(
-                (intv_data['type'] == 2) & (intv_data['det'] == s)
-            )]['val'].sum()
-
-            # current money at day == end
-            # income
-            sum_in_src = end_month_data[(
-                (end_month_data['type'] == 0) & (end_month_data['src'] == s)
-            )]['val'].sum()
-            # outcome
-            sum_out_src = end_month_data[(
-                (end_month_data['type'] == 1) & (end_month_data['src'] == s)
-            )]['val'].sum()
-            # move: out
-            sum_mv_out = end_month_data[(
-                (end_month_data['type'] == 2) & (end_month_data['src'] == s)
-            )]['val'].sum()
-            # move: in
-            sum_mv_in = end_month_data[(
-                (end_month_data['type'] == 2) & (end_month_data['det'] == s)
-            )]['val'].sum()
-            # first
-            sum_f = end_month_data[(
-                (end_month_data['type'] == 3) & (end_month_data['src'] == s)
-            )]['val'].sum()
-            # calculate current
-            result['current'][s] = (
-                sum_in_src.astype(np.int64)
-                + sum_mv_in
-                - sum_out_src
-                - sum_mv_out
-                + last_current[s]
-                + sum_f
-            )
-        # end sources loop
+        # calculate sum
+        result = self.__get_intv_sum(intv_data)
+        result['current'] = self.__get_intv_sum(
+            end_month_data, last_current
+        )['current']
 
         # calculate summary
         current, cash, income, outcome, net, move\
@@ -1049,7 +1047,7 @@ class Stat_Data(QStandardItemModel):
 
     @property
     def initalized(self):
-        return self.__initalized
+        return self.__type_setted
 
     @property
     def data_name(self):

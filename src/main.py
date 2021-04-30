@@ -639,6 +639,19 @@ class TabStatM(QWidget, Ui_TabStatM):
     def refresh_stat(self):
         self.__set_month(self.cbMonth.currentText())
 
+    def show_currrent(self):
+        currents, total, cache = self.__stat.get_current_at_now()
+        changer = self.__data.sources.get_index_no()
+        for wids in self.__data_labels:
+            for wid in wids:
+                wid.setText('-')
+        for wid in self.__sum_labels:
+            wid.setText('-')
+        for k, current_wid in enumerate(self.lbDataCurrent):
+            current_wid.setText(str(currents[changer[k]]))
+        self.lbSumCurrent.setText(str(total))
+        self.lbSumCash.setText(str(cache))
+
     def __first_day_of_week(self, date):
         assert isinstance(date, QDate)
         weekday = date.dayOfWeek()
@@ -690,11 +703,7 @@ class TabStatM(QWidget, Ui_TabStatM):
             if raw_data:
                 self.__set_stat(raw_data)
         else:  # if not month -> clear
-            for wids in self.__data_labels:
-                for wid in wids:
-                    wid.setText('')
-            for wid in self.__sum_labels:
-                wid.setText('')
+            self.show_currrent()
 
     def __set_week(self, date=None):
         if not date:
@@ -702,13 +711,17 @@ class TabStatM(QWidget, Ui_TabStatM):
         start_date = self.__first_day_of_week(date).toPython()
         end_date = start_date + datetime.timedelta(6)
         self.calInterval.setSelectedDate(start_date)
-        self.__set_stat(self.__stat.get_intv(start_date, end_date))
+        self.__set_stat(
+            self.__stat.get_intv(self.__data.raw, start_date, end_date)
+        )
 
     def __set_day(self, date=None):
         if not date:
             date = self.calInterval.selectedDate()
         start_date = end_date = date.toPython()
-        self.__set_stat(self.__stat.get_intv(start_date, end_date))
+        self.__set_stat(
+            self.__stat.get_intv(self.__data.raw, start_date, end_date)
+        )
 
     def set_stat_type(self):
         # pylint: disable=attribute-defined-outside-init
@@ -725,7 +738,7 @@ class TabStatM(QWidget, Ui_TabStatM):
                 if not wid.objectName():
                     wid.deleteLater()
 
-        data = self.__data.get_data()
+        data = self.__data.raw
 
         self.__stat.set_type(
             self.__data.sources.get_no(),  # source (numbers)
@@ -966,10 +979,11 @@ class MainWin(QMainWindow, Ui_MainWin):
                 self.__login_win.password = password
 
         if file_name:
-            self.__load(file_name)
-        else:
-            if os.path.isfile(last_file):
-                self.__load(last_file)
+            if self.__load(file_name):
+                self.tabStatM.show_currrent()
+        elif os.path.isfile(last_file):
+            if self.__load(last_file):
+                self.tabStatM.show_currrent()
 
         # connect signals
         self.acLoad.triggered.connect(self.__load_as)
@@ -1085,14 +1099,14 @@ class MainWin(QMainWindow, Ui_MainWin):
                 msgbox.setDetailedText(traceback.format_exc())
                 response = msgbox.exec_()
                 if response == QMessageBox.Abort:
-                    break
+                    return False
             else:
                 self.__last_file = file_path
                 self.__saved = True
                 self.tabData.resize()
                 self.tabData.to_bottom()
                 self.statusbar.showMessage('불러오기 성공', timeout=2000)
-                break
+                return True
 
     def __save_as(self):
         path = QFileDialog.getSaveFileName(
