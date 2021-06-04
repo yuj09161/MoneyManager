@@ -491,33 +491,33 @@ class Data(QStandardItemModel):
 
         if self.row_count >= MAX_DATA_CNT:
             raise MaxDataCountError
+
+        try:
+            parsed_data = self.__parse_data(data)
+        except Exception:
+            raise ValueError('Tried to add data with wrong arguments')
+
+        date = parsed_data[0]
+        real_date = self.__data[:self.row_count]['date']
+        if date >= real_date[-1]:  # append(=insert at end)
+            index = self.row_count
+            self.appendRow(arr_to_qitem(data))
+            self.__data[index] = parsed_data
         else:
-            try:
-                parsed_data = self.__parse_data(data)
-            except Exception:
-                raise ValueError('Tried to add data with wrong arguments')
+            index = np.searchsorted(real_date, date, 'right')
+            tmp_list = np.array(parsed_data, self.__data_form)
+            self.insertRow(index, arr_to_qitem(data))
+            if not index:
+                self.__data = np.append(
+                    tmp_list, self.__data[:MAX_DATA_CNT - 1]
+                )
             else:
-                date = parsed_data[0]
-                real_date = self.__data[:self.row_count]['date']
-                if date >= real_date[-1]:  # append(=insert at end)
-                    index = self.row_count
-                    self.appendRow(arr_to_qitem(data))
-                    self.__data[index] = parsed_data
-                else:
-                    index = np.searchsorted(real_date, date, 'right')
-                    tmp_list = np.array(parsed_data, self.__data_form)
-                    self.insertRow(index, arr_to_qitem(data))
-                    if not index:
-                        self.__data = np.append(
-                            tmp_list, self.__data[:MAX_DATA_CNT - 1]
-                        )
-                    else:
-                        tmp_list = np.append(self.__data[:index], tmp_list)
-                        self.__data = np.append(
-                            tmp_list, self.__data[index:MAX_DATA_CNT - 1]
-                        )
-                self.row_count += 1
-                return index, parsed_data
+                tmp_list = np.append(self.__data[:index], tmp_list)
+                self.__data = np.append(
+                    tmp_list, self.__data[index:MAX_DATA_CNT - 1]
+                )
+        self.row_count += 1
+        return index, parsed_data
 
     def del_data(self, row_no):
         data = self.__data[row_no]
@@ -550,16 +550,14 @@ class Data(QStandardItemModel):
 
     # utility functions
     def move(self, row_no, dest):
-        if dest >= self.row_count:
-            return 1
+        assert 0 < dest < self.row_count,\
+            f'tried to move wrong row count ({dest})'
 
         to_move = self.__data[row_no]
         self.__data = np.insert(np.delete(self.__data, row_no), dest, to_move)
 
         row_items = self.takeRow(row_no)
         self.insertRow(dest, row_items)
-
-        return 0
 
     def check_date(self, row_no):
         date = self.__data[row_no]['date']
@@ -650,7 +648,7 @@ class Stat_Data(QStandardItemModel):
         """
         Get sum of all rows(
         income_src, outcome_src, income_typ, outcome_typ, move_in, move_out
-        ) of the array
+        ) of the array.
 
         Args:
             data (np.ndarray):
@@ -769,9 +767,7 @@ class Stat_Data(QStandardItemModel):
                 self.__stat[k]['current'] = last_current.copy()
                 continue
 
-            d_c = self.__get_intv_sum(
-                month_data, last_current
-            )
+            d_c = self.__get_intv_sum(month_data, last_current)
             d_c['year'] = y
             d_c['month'] = m
 

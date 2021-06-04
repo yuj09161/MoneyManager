@@ -368,6 +368,7 @@ class TabData(QWidget, Ui_TabData):
 
         self.cbType.currentIndexChanged.connect(self.__set_type)
 
+        self.lnDate.escapePressed.connect(self.__clear_date)
         self.lnCost.returnPressed.connect(self.__add_or_edit)
         self.lnDetail.returnPressed.connect(self.__add_or_edit)
         self.btnAddData.clicked.connect(self.__add_data)
@@ -386,6 +387,10 @@ class TabData(QWidget, Ui_TabData):
 
     def to_bottom(self):
         self.treeData.scrollToBottom()
+
+    def __clear_date(self):
+        self.lnDate.clear()
+        self.lnDate.setCursorPosition(2)
 
     def __add_or_edit(self):
         if self.__editing_row > 0:
@@ -441,7 +446,7 @@ class TabData(QWidget, Ui_TabData):
                 QMessageBox.Cancel, self
             )
             msgbox.setDetailedText(traceback.format_exc())
-            msgbox.exec_()
+            msgbox.exec()
         else:
             self.resize()
             self.__set_saved(False)
@@ -567,7 +572,7 @@ class TabData(QWidget, Ui_TabData):
                 self
             )
             msgbox.setDetailedText(traceback.format_exc())
-            msgbox.exec_()
+            msgbox.exec()
         else:
             self.resize()
             self.__set_saved(False)
@@ -1019,7 +1024,7 @@ class MainWin(QMainWindow, Ui_MainWin):
                     self
                 )
                 msgbox.setDetailedText(err_txt)
-                response = msgbox.exec_()
+                response = msgbox.exec()
                 if response == QMessageBox.Retry:
                     self.__do_transfer()
         # next_trans
@@ -1047,7 +1052,7 @@ class MainWin(QMainWindow, Ui_MainWin):
                 self
             )
             msgbox.setDetailedText(traceback.format_exc())
-            response = msgbox.exec_()
+            response = msgbox.exec()
             if response == QMessageBox.Retry:
                 self.__do_transfer()
 
@@ -1097,7 +1102,7 @@ class MainWin(QMainWindow, Ui_MainWin):
                     self
                 )
                 msgbox.setDetailedText(traceback.format_exc())
-                response = msgbox.exec_()
+                response = msgbox.exec()
                 if response == QMessageBox.Abort:
                     return False
             else:
@@ -1135,7 +1140,7 @@ class MainWin(QMainWindow, Ui_MainWin):
                     self
                 )
                 msgbox.setDetailedText(traceback.format_exc())
-                response = msgbox.exec_()
+                response = msgbox.exec()
                 if response == QMessageBox.Abort:
                     break
             else:
@@ -1172,7 +1177,7 @@ class MainWin(QMainWindow, Ui_MainWin):
                             self
                         )
                         msgbox.setDetailedText(traceback.format_exc())
-                        response = msgbox.exec_()
+                        response = msgbox.exec()
                         if response == QMessageBox.Abort:
                             break
                     else:
@@ -1206,7 +1211,7 @@ class MainWin(QMainWindow, Ui_MainWin):
                         self
                     )
                     msgbox.setDetailedText(traceback.format_exc())
-                    response = msgbox.exec_()
+                    response = msgbox.exec()
                     if response == QMessageBox.Abort:
                         break
                 else:
@@ -1251,7 +1256,7 @@ def main():
     app = QApplication()
     main_win = MainWin(args.file_name)
     main_win.show()
-    app.exec_()
+    app.exec()
 
 
 if __name__ == '__main__':

@@ -1,7 +1,7 @@
 # pylint: disable=attribute-defined-outside-init, line-too-long, too-many-instance-attributes
 # pylint: disable=too-many-statements, too-few-public-methods, undefined-variable
 
-from PySide6.QtCore import Qt, QCoreApplication, QSize, QMetaObject
+from PySide6.QtCore import Qt, Signal, QCoreApplication, QSize, QMetaObject
 from PySide6.QtGui import QRegularExpressionValidator, QAction, QKeySequence
 from PySide6.QtWidgets import (
     QWidget, QGroupBox, QTabWidget, QScrollArea,
@@ -33,6 +33,16 @@ sizePolicy_EF.setVerticalStretch(0)
 sizePolicy_EE = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 sizePolicy_EE.setHorizontalStretch(0)
 sizePolicy_EE.setVerticalStretch(0)
+
+
+class EscapeLineEdit(QLineEdit):
+    escapePressed = Signal()
+
+    def keyPressEvent(self, event):
+        if event == QKeySequence.Cancel:
+            self.escapePressed.emit()
+        else:
+            super().keyPressEvent(event)
 
 
 class Ui_Txt:
@@ -348,7 +358,7 @@ class Ui_TabData:
         self.btnUp.setMaximumWidth(25)
         self.glDataIn.addWidget(self.btnUp, 0, 7, 1, 1)
 
-        self.lnDate = QLineEdit(self.widInput)
+        self.lnDate = EscapeLineEdit(self.widInput)
         self.lnDate.setObjectName(u"lnDate")
         self.lnDate.setAlignment(Qt.AlignCenter)
         self.lnDate.setMaximumSize(QSize(75, 16777215))
