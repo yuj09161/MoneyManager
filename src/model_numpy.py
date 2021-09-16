@@ -239,10 +239,6 @@ class Data(QStandardItemModel):
         self.__version = 3
         self.__std_day = DEFAULT_STD_DAY
 
-        self.__tmp_src_txt = {}
-        self.__tmp_in_txt = {}
-        self.__tmp_out_txt = {}
-
         self.type = ComboData()
         self.sources = ComboDataChk()
         self.in_type = ComboData()
@@ -499,7 +495,8 @@ class Data(QStandardItemModel):
 
         date = parsed_data[0]
         real_date = self.__data[:self.row_count]['date']
-        if date >= real_date[-1]:  # append(=insert at end)
+        if real_date.size == 0 or date >= real_date[-1]:
+            # append(= insert at end)
             index = self.row_count
             self.appendRow(arr_to_qitem(data))
             self.__data[index] = parsed_data
@@ -595,7 +592,6 @@ class Stat_Data(QStandardItemModel):
 
         self.__type_setted = False
         self.__loaded = False
-        self.__data = None
 
     def set_type(self, sources, in_type, out_type, is_cash, is_ness, std_day):
         self.__sources = sources
@@ -719,7 +715,6 @@ class Stat_Data(QStandardItemModel):
     def set_data(self, data):
         assert self.__type_setted, 'Type is not setted'
 
-        self.__data = data
         self.__first_date = datetime.date.fromordinal(
             data['date'].min() + self.__std_day
         )

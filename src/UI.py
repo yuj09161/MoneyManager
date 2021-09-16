@@ -309,7 +309,7 @@ class Ui_TabCate:
 
 class Ui_TabData:
     def setupUi(self, TabData):
-        TabData.setObjectName(u"tabData")
+        TabData.setObjectName(u"TabData")
         self.vlData = QVBoxLayout(TabData)
         self.vlData.setObjectName(u"vlData")
 
