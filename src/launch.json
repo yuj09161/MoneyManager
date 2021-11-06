@@ -1,0 +1,6 @@
+{
+    "main_module": "main",
+    "main_func": "main",
+    "splash": "MoneyManager",
+    "pre_main": "pre_main"
+}

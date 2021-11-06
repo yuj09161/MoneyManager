@@ -370,12 +370,14 @@ class Ui_TabData:
 
         self.cbSrc = QComboBox(self.widInput)
         self.cbSrc.setObjectName(u"cbSrc")
-        self.cbSrc.setMinimumSize(QSize(100, 1))
+        self.cbSrc.setMinimumSize(QSize(125, 1))
+        self.cbSrc.setMaximumSize(QSize(125, 16777215))
         self.glDataIn.addWidget(self.cbSrc, 1, 2, 1, 1)
 
         self.cbDetail = QComboBox(self.widInput)
         self.cbDetail.setObjectName(u"cbDetail")
-        self.cbDetail.setMinimumSize(QSize(100, 1))
+        self.cbDetail.setMinimumSize(QSize(125, 1))
+        self.cbDetail.setMaximumSize(QSize(125, 16777215))
         self.glDataIn.addWidget(self.cbDetail, 1, 3, 1, 1)
 
         self.lnCost = QLineEdit(self.widInput)
