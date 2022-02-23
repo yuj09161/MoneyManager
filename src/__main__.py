@@ -1,9 +1,10 @@
+#!/usr/bin/env python3
+
 import json
 import zipfile
 
-from universal_main.universal_constants import (
+from universal_main.universal_constants import\
     PROGRAM_DIR, IS_ZIPFILE, ZIPAPP_FILE
-)
 from universal_main.universal_main import main, pyside6_splash_main
 
 
@@ -20,20 +21,18 @@ def run_main():
         ) as file:
             config = json.load(file)
     splash_text = config['splash']
-    if splash_text:
-        pre_main_name = config['pre_main']
-        if pre_main_name:
-            pyside6_splash_main(
-                config['main_module'], config['main_func'],
-                splash_text, pre_main_name
-            )
-        else:
-            pyside6_splash_main(
-                config['main_module'], config['main_func'],
-                splash_text
-            )
+    if splash_text is None:
+        main(
+            config['main_module'], config['main_func'],
+            config['min_py_ver'], config['requirements']
+        )
     else:
-        main(config['main_module'], config['main_func'])
+        pre_main_name = config['pre_main']
+        pyside6_splash_main(
+            config['main_module'], config['main_func'],
+            config['min_py_ver'], config['requirements'], splash_text,
+            '' if pre_main_name is None else pre_main_name
+        )
 
 
 if __name__ == '__main__':

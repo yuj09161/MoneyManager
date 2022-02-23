@@ -2,5 +2,10 @@
     "main_module": "main",
     "main_func": "main",
     "splash": "MoneyManager",
-    "pre_main": "pre_main"
+    "pre_main": "pre_main",
+    "min_py_ver": [3, 7],
+    "requirements": [
+        "PySide6",
+        "numpy"
+    ]
 }

@@ -10,9 +10,8 @@ import subprocess
 from importlib import import_module
 from typing import Iterable, List
 
-from .universal_constants import (
+from .universal_constants import\
     ENCODING, IS_WINDOWS, PROGRAM_DIR, IS_ZIPFILE, ZIPAPP_FILE
-)
 
 
 FILE_DIR = os.path.abspath(os.path.dirname(__file__)) + '/'
@@ -27,18 +26,24 @@ QSplashScreen = None
 _Splash = None
 
 
-def _check_py37() -> bool:
+def _check_py_ver(min_ver: Iterable) -> bool:
     """
-    Check Python version is >= 3.7.
+    Check Python version is >= min_ver.
+
+    Args:
+        min_ver (Iterable): The python min version. (ex: (3, 7))
 
     Returns:
-        bool: If version < 3.7, return True. Otherwise, return False.
+        bool: If version < min_ver, return True. Otherwise, return False.
     """
-    if sys.version_info < (3, 7):
+    if sys.version_info < tuple(min_ver):
         print(
-            'This program needs Python >= 3.7.',
-            'Please upgrade Python version and try again.',
-            sep='\n'
+            'This program needs Python >= '
+            + '.'.join(map(str, min_ver)) +
+            ', but current Python interpreter verion is '
+            + '.'.join(map(str, sys.version_info[:3])) +
+            '.\nPlease upgrade Python.',
+            sep=''
         )
         return True
     return False
@@ -98,14 +103,16 @@ def _check_to_install(requirements: Iterable[str]) -> List[str]:
     Returns:
         List[str]: The package names.
     """
-    installed = run_cmd(['pip', 'list']).stdout.decode(ENCODING)
+    installed = run_cmd(
+        [sys.executable, '-m', 'pip', 'list']
+    ).stdout.decode(ENCODING)
     return [
         package for package in requirements
         if not package + ' ' in installed
     ]
 
 
-def _zipapp_package_installer() -> int:
+def _zipapp_package_installer(requirements) -> int:
     """
     The package checker and installer (Python zipapp version.)
 
@@ -113,9 +120,7 @@ def _zipapp_package_installer() -> int:
         int: The return code from popened process.
     """
     with zipfile.ZipFile(ZIPAPP_FILE) as main_zip:
-        with main_zip.open('requirements.txt', 'r') as requirements_file:
-            requirements = requirements_file.read().decode('utf-8')
-        to_install = _check_to_install(filter(None, requirements.splitlines()))
+        to_install = _check_to_install(requirements)
 
         if not to_install:
             return 0
@@ -138,30 +143,26 @@ def _zipapp_package_installer() -> int:
                 with main_zip.open(
                     wincurses_dir
                     + f"wincurses/curses-cp{major}{minor}_"
-                    + '64.whl' if sys.maxsize == 2 ** 63 - 1 else '32.whl'
-                    , 'rb'
+                    + '64.whl' if sys.maxsize == 2 ** 63 - 1 else '32.whl',
+                    'rb'
                 ) as curses_pyd:
                     for name in curses_pyd.namelist():
                         if name.endswith('.pyd'):
                             curses_pyd.extract(name, curses_dir)
 
             return subprocess.run([
-                'py', installer_path, *to_install
+                sys.executable, installer_path, *to_install
             ], check=False).returncode
 
 
-def _normal_package_checker() -> int:
+def _normal_package_checker(requirements) -> int:
     """
     The package checker and installer (non-zipapp version.)
 
     Returns:
         int: The return code from popened process.
     """
-    with open(
-        PROGRAM_DIR + 'requirements.txt', 'r', encoding='utf-8'
-    ) as file:
-        requirements = file.read()
-    to_install = _check_to_install(filter(None, requirements.splitlines()))
+    to_install = _check_to_install(requirements)
 
     if not to_install:
         return 0
@@ -183,15 +184,18 @@ def _normal_package_checker() -> int:
                         curses_pyd.extract(name, curses_dir)
 
             return subprocess.run([
-                'py', tmp_dir + '/package_installer.py', *to_install
+                sys.executable, tmp_dir + '/package_installer.py', *to_install
             ], check=False).returncode
 
-    return subprocess.run(
-        ['py', FILE_DIR + 'package_installer.py', *to_install], check=False
-    ).returncode
+    return subprocess.run([
+        sys.executable, FILE_DIR + 'package_installer.py', *to_install
+    ], check=False).returncode
 
 
-def main(main_module_name: str, main_func_name: str):
+def main(
+    main_module_name: str, main_func_name: str,
+    min_py_ver: Iterable, requirements: Iterable
+):
     """
     Check & install packages, and run main function.
 
@@ -202,14 +206,18 @@ def main(main_module_name: str, main_func_name: str):
             The name of main function.
             It will be called by this function
             if installer successfully executed.
+        min_py_ver (Iterable):
+            The minimum requirement of python version.
+        requirements (Iterable):
+            PIP names of required package.
     """
-    if _check_py37():
+    if _check_py_ver(min_py_ver):
         return
 
     if IS_ZIPFILE:
-        return_code = _zipapp_package_installer()
+        return_code = _zipapp_package_installer(requirements)
     else:
-        return_code = _normal_package_checker()
+        return_code = _normal_package_checker(requirements)
 
     if return_code == 0:
         main_module = import_module(main_module_name)
@@ -234,6 +242,7 @@ def _check_imports() -> bool:
         # pylint: disable = global-statement
         # pylint: disable = redefined-outer-name
         # pylint: disable = import-outside-toplevel
+        # pylint: disable = global-variable-not-assigned
         global Qt
         global QIcon
         global QApplication
@@ -276,10 +285,9 @@ def _check_imports() -> bool:
 
 
 def pyside6_splash_main(
-    main_module_name: str,
-    main_func_name: str,
-    splash_text: str,
-    pre_main_name: str = ''
+    main_module_name: str, main_func_name: str,
+    min_py_ver: Iterable, requirements: Iterable,
+    splash_text: str, pre_main_name: str = ''
 ):
     """
     Splash screen & intall packages.
@@ -297,6 +305,10 @@ def pyside6_splash_main(
             The name of main function.
             It will be called by this function
             if installer successfully executed.
+        min_py_ver (Iterable):
+            The minimum requirement of python version.
+        requirements (Iterable):
+            PIP names of required package.
         splash_text (str):
             The text displayed to splash screen.
         pre_main_name (str, optional):
@@ -304,16 +316,18 @@ def pyside6_splash_main(
             Return value of function will be used
                 as second argument of main function.
     """
-    if _check_py37():
+    if _check_py_ver(min_py_ver):
         return
 
     # pylint: disable = not-callable
     if _check_imports():  # When PySide6 is not installed
         # Check missing packages and install (with PySide6)
         if IS_ZIPFILE:
-            return_code = _zipapp_package_installer()
+            return_code = _zipapp_package_installer(requirements)
         else:
-            return_code = _normal_package_checker()
+            return_code = _normal_package_checker(requirements)
+        if return_code != 0:
+            sys.exit()
 
         # Create Qt application & Show splash
         app = QApplication()
@@ -332,13 +346,13 @@ def pyside6_splash_main(
 
         # Check another missing packages
         if IS_ZIPFILE:
-            return_code = _zipapp_package_installer()
+            return_code = _zipapp_package_installer(requirements)
         else:
-            return_code = _normal_package_checker()
+            return_code = _normal_package_checker(requirements)
 
     if return_code == 0:
         main_module = import_module(main_module_name)
-        if pre_main_name:
+        if pre_main_name is not None:
             res = getattr(main_module, pre_main_name)()
             splash.hide()
             return getattr(main_module, main_func_name)(app, res)

@@ -884,7 +884,7 @@ class MainWin(QMainWindow, Ui_MainWin):
 
     trans_sig = Signal(int, dict, str)
 
-    def __init__(self, file_name):
+    def __init__(self, file_name: str):
         super().__init__()
         self.setupUi(self)
 
@@ -977,9 +977,10 @@ class MainWin(QMainWindow, Ui_MainWin):
         self.__err_win = Txt(self, 'Error', '')
 
         # load data
+        last_file = None
         try:
             if os.path.isfile(CONFIG_FILE):
-                with open(CONFIG_FILE, 'r') as file:
+                with open(CONFIG_FILE, 'r', encoding='utf-8') as file:
                     last_file, username, password = file.read().split('\n')
 
                     self.__login_win.username = username
@@ -990,7 +991,7 @@ class MainWin(QMainWindow, Ui_MainWin):
         if file_name:
             if self.__load(file_name):
                 self.tabStatM.show_currrent()
-        elif os.path.isfile(last_file):
+        elif last_file is not None and os.path.isfile(last_file):
             if self.__load(last_file):
                 self.tabStatM.show_currrent()
 
@@ -1267,4 +1268,8 @@ def main(app, file_name):
 
 
 if __name__ == '__main__':
-    main()  # pylint: disable = no-value-for-parameter
+    # pylint: disable = ungrouped-imports
+    from PySide6.QtWidgets import QApplication
+
+    app = QApplication()
+    main(app)
