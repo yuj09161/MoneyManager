@@ -1,7 +1,7 @@
 from PySide6.QtCore import Signal, Qt, QItemSelectionModel, QDate
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QGroupBox,
-    QLabel, QTreeView, QMessageBox, QFileDialog
+    QApplication, QFileDialog, QGroupBox, QLabel, QMainWindow, QMessageBox,
+    QStyle, QWidget, QTreeView
 )
 
 import os
@@ -18,7 +18,8 @@ from UI import (
     Ui_TabCate, Ui_TabData, Ui_TabStatS, Ui_TabStatM,
     Ui_GbAddDelCate, Ui_GbAddDelChk
 )
-from model_numpy import Data, Stat_Data
+from model_numpy import Data, Stat
+from python_qt_hangul_input import PythonQtHangulInputFilter, HangulIndicator
 from universal_main.universal_constants import DATADIR
 from constants import DEFAULT_STD_DAY
 
@@ -207,6 +208,7 @@ class GbCateBase(QGroupBox):
         return base
 
     def __set_save_and_stat_type(func):  # pylint: disable=no-self-argument
+        # pylint: disable=unused-private-member
         # pylint: disable=redefined-outer-name, protected-access
         def base(self, *args):
             func(self, *args)
@@ -320,7 +322,6 @@ class TabCate(QWidget, Ui_TabCate):
         super().__init__(parent)
 
         self.__data = models['data']
-        self.__stat = models['stat']
 
         self.gbSrc = GbAddDelChk(
             self, self.__data.sources, functions, "현금성"
@@ -333,9 +334,6 @@ class TabCate(QWidget, Ui_TabCate):
         )
 
         self.setupUi(self)
-
-        self.__set_saved = functions['set_saved']
-        self.__set_stat_type = functions['set_stat_type']
 
         # set model
         self.gbSrc.lvOrd.setModel(self.__data.sources)
@@ -892,9 +890,12 @@ class MainWin(QMainWindow, Ui_MainWin):
         self.__saved = True
         self.__last_file = ''
 
+        self.__hangul_input_filter = PythonQtHangulInputFilter()
+        self.__hangul_input_indicator = HangulIndicator(self)
+
         # define models
         self.__data = Data(None)
-        self.__stat = Stat_Data(None)
+        self.__stat = Stat(None)
         models = {
             'data': self.__data,
             'stat': self.__stat
@@ -920,16 +921,16 @@ class MainWin(QMainWindow, Ui_MainWin):
 
         # add tabs
         self.tabWidget.addTab(
-            self.tabCate, u"\ubd84\ub958 \uad00\ub9ac"
+            self.tabCate, "\ubd84\ub958 \uad00\ub9ac"
         )
         self.tabWidget.addTab(
-            self.tabData, u"\uae30\ub85d \ucd94\uac00/\uc218\uc815"
+            self.tabData, "\uae30\ub85d \ucd94\uac00/\uc218\uc815"
         )
         self.tabWidget.addTab(
-            self.tabStatS, u"\uac04\ub7b5\ud1b5\uacc4"
+            self.tabStatS, "\uac04\ub7b5\ud1b5\uacc4"
         )
         self.tabWidget.addTab(
-            self.tabStatM, u"\uc0c1\uc138\ud1b5\uacc4"
+            self.tabStatM, "\uc0c1\uc138\ud1b5\uacc4"
         )
 
         # set models' parent
@@ -996,6 +997,13 @@ class MainWin(QMainWindow, Ui_MainWin):
                 self.tabStatM.show_currrent()
 
         # connect signals
+        self.__hangul_input_filter.hangul_status_changed.connect(
+            self.__hangul_input_indicator.set_hangul_status
+        )
+        self.acHangulInputEnable.toggled.connect(
+            self.__on_hangul_input_enabled_changed
+        )
+
         self.acLoad.triggered.connect(self.__load_as)
         self.acSave.triggered.connect(self.__save)
         self.acSaveAs.triggered.connect(self.__save_as)
@@ -1060,10 +1068,6 @@ class MainWin(QMainWindow, Ui_MainWin):
             response = msgbox.exec()
             if response == QMessageBox.Retry:
                 self.__do_transfer()
-
-    def __show_err(self, err_type, txt):
-        self.__err_win.set_text(f'{err_type}\n{txt}')
-        self.__err_win.show()
 
     def __load_as(self):
         if not self.__saved:
@@ -1222,16 +1226,48 @@ class MainWin(QMainWindow, Ui_MainWin):
                 else:
                     break
 
-    def __save_config(self):
+    def __save_config(self, *, encoding=DEFAULT_ENCODING):
         if not os.path.isdir(CONFIG_DIR):
             os.mkdir(CONFIG_DIR)
 
-        with open(CONFIG_FILE, 'w') as file:
+        with open(CONFIG_FILE, 'w', encoding=encoding) as file:
             file.write('\n'.join((
                 self.__last_file,
                 self.__login_win.username,
                 self.__login_win.password
             )))
+
+    # Hangul input related
+    def __on_hangul_input_enabled_changed(self, enabled: bool):
+        if enabled:
+            self.__hangul_input_indicator.show()
+            QApplication.instance().installEventFilter(
+                self.__hangul_input_filter
+            )
+        else:
+            self.__hangul_input_filter.reset()
+            self.__hangul_input_indicator.set_hangul_status(False)
+            self.__hangul_input_indicator.hide()
+            QApplication.instance().removeEventFilter(
+                self.__hangul_input_filter
+            )
+
+    def __move_hangul_indicator(self):
+        indicator_size = self.__hangul_input_indicator.size()
+        rect = QStyle.alignedRect(
+            Qt.LeftToRight, Qt.AlignBottom | Qt.AlignRight,
+            indicator_size, self.geometry()
+        )
+        self.__hangul_input_indicator.setPosition.emit(
+            rect.x(), rect.y() + indicator_size.height()
+        )
+    # End hangul input
+
+    def moveEvent(self, _):
+        self.__move_hangul_indicator()
+
+    def resizeEvent(self, _):
+        self.__move_hangul_indicator()
 
     def closeEvent(self, event):
         if self.__saved:
@@ -1268,8 +1304,5 @@ def main(app, file_name):
 
 
 if __name__ == '__main__':
-    # pylint: disable = ungrouped-imports
-    from PySide6.QtWidgets import QApplication
-
     app = QApplication()
-    main(app)
+    main(app, '')

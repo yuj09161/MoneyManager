@@ -569,7 +569,7 @@ class Data(QStandardItemModel):
         )
 
 
-class Stat_Data(QStandardItemModel):
+class Stat(QStandardItemModel):
     # Todo: fix error when not load file
     # pylint: disable=attribute-defined-outside-init
     __header_text = (
